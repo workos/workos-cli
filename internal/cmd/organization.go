@@ -26,10 +26,6 @@ var createOrgCmd = &cobra.Command{
 	Example: "workos organization create FooCorp foo-corp.com pending",
 	Args:    cobra.RangeArgs(2, 3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := GetConfigOrExit()
-		fmt.Printf("Setting API Key in WorkOS SDK as %s\n", cfg.ApiKeys[cfg.ActiveApiKey].Value)
-		organizations.SetAPIKey(cfg.ApiKeys[cfg.ActiveApiKey].Value)
-
 		name := args[0]
 		domain := args[1]
 		state := organizations.Pending
