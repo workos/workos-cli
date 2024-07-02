@@ -150,6 +150,7 @@ var switchApiKeyCmd = &cobra.Command{
 			return err
 		}
 
+		config.ActiveApiKey = selectedApiKey
 		err = config.Write()
 		if err != nil {
 			return err
