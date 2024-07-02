@@ -1,0 +1,63 @@
+project_name: WorkOS CLI
+before:
+  hooks:
+  # - go mod tidy
+  # - go generate ./...
+builds:
+  - id: macos
+    goos: [darwin]
+    goarch: [amd64, arm64]
+    binary: bin/workos
+    main: ./cmd/workos/
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  - id: linux
+    goos: [linux]
+    goarch: [386, arm, amd64, arm64]
+    env:
+      - CGO_ENABLED=0
+    binary: bin/workos
+    main: ./cmd/workos/
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  - id: windows
+    goos: [windows]
+    goarch: [386, amd64, arm64]
+    binary: bin/workos
+    main: ./cmd/workos/
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }} 
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+checksum:
+  name_template: 'checksums.txt'
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+brews:
+  -
+    name: workos-cli
+    homepage: "https://github.com/workos/workos-cli"
+    repository:
+      owner: workos
+      name: homebrew-tap
+    commit_author:
+      name: WorkOS
+      email: support@workos.com
