@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-go/v4/pkg/organizations"
@@ -12,6 +11,9 @@ import (
 
 func init() {
 	orgCmd.AddCommand(createOrgCmd)
+	orgCmd.AddCommand(updateOrgCmd)
+	orgCmd.AddCommand(listOrgCmd)
+	orgCmd.AddCommand(deleteOrgCmd)
 	rootCmd.AddCommand(orgCmd)
 }
 
@@ -62,29 +64,43 @@ var updateOrgCmd = &cobra.Command{
 	Short:   "Update an organization with a specified name and domain",
 	Long:    "Update an organization with a specified name and domain. Optionally, specify the state of the domain (verified or pending).",
 	Example: "workos organization update FooCorp foo-corp.com pending",
-	Args:    cobra.RangeArgs(2, 3),
+	Args:    cobra.RangeArgs(2, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		organziation := args[0]
+		organizationId := args[0]
 		name := args[1]
-		domain := args[2]
-		state := organizations.Pending
-		if len(args) == 4 {
-			state = organizations.OrganizationDomainDataState(args[2])
+		var domain string
+		var state organizations.OrganizationDomainDataState
+		var hasDomain, hasState bool
+
+		if len(args) > 2 {
+			domain = args[2]
+			hasDomain = true
+		}
+		if len(args) > 3 {
+			state = organizations.OrganizationDomainDataState(args[3])
+			hasState = true
 		}
 
+		orgOpts := organizations.UpdateOrganizationOpts{
+			Organization: organizationId,
+			Name:         name,
+		}
+
+		if hasDomain || hasState {
+			domainData := organizations.OrganizationDomainData{}
+			if hasDomain {
+				domainData.Domain = domain
+			}
+			if hasState {
+				domainData.State = state
+			}
+			orgOpts.DomainData = []organizations.OrganizationDomainData{domainData}
+		}
 		org, err := organizations.UpdateOrganization(
 			context.Background(),
-			organizations.UpdateOrganizationOpts{
-				Organization: organziation,
-				Name:         name,
-				DomainData: []organizations.OrganizationDomainData{
-					{
-						Domain: domain,
-						State:  state,
-					},
-				},
-			},
+			orgOpts,
 		)
+
 		if err != nil {
 			return fmt.Errorf("error updating organization: %v", err)
 		}
@@ -95,68 +111,88 @@ var updateOrgCmd = &cobra.Command{
 	},
 }
 
+// pass flags instead
 var listOrgCmd = &cobra.Command{
-
-	Use:     "list",
-	Short:   "List an organizations with a specified domain",
-	Long:    "List organizations, can filter by domain, and limit the results and order them in asc and desc.",
-	Example: "workos organization list foo-corp.com desc",
-	Args:    cobra.MaximumNArgs(4),
+	Use:   "list",
+	Short: "List organizations with optional filters",
+	Long:  "List organizations, optionally filtering by domain, limit, before/after cursor, and order (asc/desc).",
+	Example: `workos organization list --domain foo-corp.com --limit 10 --before cursor --order desc
+workos organization list --domain foo-corp.com --after cursor --order asc`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Retrieve flag values
+		domain, _ := cmd.Flags().GetString("domain")
+		limit, _ := cmd.Flags().GetInt("limit")
+		before, _ := cmd.Flags().GetString("before")
+		after, _ := cmd.Flags().GetString("after")
+		order, _ := cmd.Flags().GetString("order")
+
 		var domains []string
-		var limit int
-		var before, after string
-		var order organizations.Order
-
-		if len(args) > 0 {
-			domains = []string{args[0]}
+		if domain != "" {
+			domains = []string{domain}
 		}
 
-		if len(args) > 1 {
-			var err error
-			limit, err = strconv.Atoi(args[1])
-			if err != nil {
-				return fmt.Errorf("invalid limit value: %v", err)
+		var orgOrder organizations.Order
+		switch order {
+		case "asc":
+			orgOrder = organizations.Asc
+		case "desc":
+			orgOrder = organizations.Desc
+		default:
+			if order != "" {
+				return fmt.Errorf("invalid order value: must be 'asc' or 'desc'")
 			}
 		}
 
-		if len(args) > 2 {
-			switch args[2] {
-			case "before":
-				before = args[3]
-			case "after":
-				after = args[3]
-			default:
-				return fmt.Errorf("third argument must be 'before' or 'after'")
-			}
+		// Create the options struct
+		orgOpts := organizations.ListOrganizationsOpts{
+			Domains: domains,
+			Limit:   limit,
+			Before:  before,
+			After:   after,
+			Order:   orgOrder,
 		}
 
-		if len(args) > 3 {
-			switch args[3] {
-			case "asc":
-				order = organizations.Asc
-			case "desc":
-				order = organizations.Desc
-			default:
-				return fmt.Errorf("fourth argument must be 'asc' or 'desc'")
-			}
-		}
-		org, err := organizations.ListOrganizations(
-			context.Background(),
-			organizations.ListOrganizationsOpts{
-				Domains: domains,
-				Limit:   limit,
-				Before:  before,
-				After:   after,
-				Order:   order,
-			},
-		)
+		// List organizations
+		org, err := organizations.ListOrganizations(context.Background(), orgOpts)
 		if err != nil {
 			return fmt.Errorf("error listing organizations: %v", err)
 		}
 
+		// Print organizations
 		orgJson, _ := json.MarshalIndent(org, "", "  ")
-		fmt.Printf("Organization:\n%s\n", string(orgJson))
+		fmt.Printf("Organizations:\n%s\n", string(orgJson))
 		return nil
 	},
+}
+
+var deleteOrgCmd = &cobra.Command{
+	Use:     "delete",
+	Short:   "Deletes a specific organization",
+	Long:    "Delete an organiztaion by passing the organization Id, you can fine the Organization Id by listing your organizations.",
+	Example: `workos organization delete <organization Id>`,
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		organizationId := args[0]
+		err := organizations.DeleteOrganization(
+			context.Background(),
+			organizations.DeleteOrganizationOpts{
+				Organization: organizationId,
+			},
+		)
+
+		if err != nil {
+			return fmt.Errorf("error deleting organization: %v", err)
+		}
+		fmt.Printf("Organization Id: %s was successfully deleted.", organizationId)
+		return nil
+	},
+}
+
+func init() {
+	// Define flags
+	listOrgCmd.Flags().String("domain", "", "Filter by domain")
+	listOrgCmd.Flags().Int("limit", 0, "Limit the number of results")
+	listOrgCmd.Flags().String("before", "", "Cursor for results before a specific item")
+	listOrgCmd.Flags().String("after", "", "Cursor for results after a specific item")
+	listOrgCmd.Flags().String("order", "", "Order of results (asc or desc)")
 }
