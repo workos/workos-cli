@@ -3,10 +3,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"regexp"
+
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/config"
-	"regexp"
 )
 
 func init() {
@@ -24,6 +25,7 @@ var initCmd = &cobra.Command{
 			apiKey      string
 			name        string
 			environment string
+			endpoint    string
 		)
 
 		err := huh.NewInput().
@@ -56,12 +58,21 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
+		err = huh.NewInput().
+			Title("Enter an API endpoint (optional, defaults to https://api.workos.com).").
+			Value(&endpoint).
+			Run()
+		if err != nil {
+			return err
+		}
+
 		fmt.Println("creating ~/.workos.json")
 		apiKeyMap := make(map[string]config.ApiKey)
 		apiKeyMap[name] = config.ApiKey{
 			Value:       apiKey,
 			Name:        name,
 			Environment: environment,
+			Endpoint:    endpoint,
 		}
 		newConfig := config.Config{
 			ActiveApiKey: name,
