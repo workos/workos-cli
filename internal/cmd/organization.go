@@ -62,7 +62,7 @@ var createOrgCmd = &cobra.Command{
 var updateOrgCmd = &cobra.Command{
 	Use:     "update <organizationId> <name> [domain] [state]",
 	Short:   "Update an organization",
-	Long:    "Update an organization with a specified name and domain. Optionally, specify the state of the domain (verified or pending).",
+	Long:    "Update an organization's domain or the verification state of the domain (verified or pending).",
 	Example: "workos organization update FooCorp foo-corp.com pending",
 	Args:    cobra.RangeArgs(2, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
