@@ -169,7 +169,7 @@ var deleteOrgCmd = &cobra.Command{
 	Use:     "delete",
 	Short:   "Delete an organization",
 	Long:    "Delete an organization by id. Find the organization's id by listing your organizations.",
-	Example: `workos organization delete <organization Id>`,
+	Example: `workos organization delete <organizationId>`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		organizationId := args[0]
