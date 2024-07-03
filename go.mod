@@ -2,6 +2,8 @@ module github.com/workos/workos-cli
 
 go 1.22.2
 
+replace github.com/workos/workos-go/v4 => /Users/rakesh/Documents/workspace/github.com/workos/workos-go
+
 require (
 	github.com/charmbracelet/huh v0.4.2
 	github.com/spf13/cobra v1.8.1
