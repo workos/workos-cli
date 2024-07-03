@@ -168,7 +168,7 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 var deleteOrgCmd = &cobra.Command{
 	Use:     "delete",
 	Short:   "Delete an organization",
-	Long:    "Delete an organiztaion by passing the organization Id, you can fine the Organization Id by listing your organizations.",
+	Long:    "Delete an organization by id. Find the organization's id by listing your organizations.",
 	Example: `workos organization delete <organization Id>`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
