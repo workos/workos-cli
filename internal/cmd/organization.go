@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-go/v4/pkg/organizations"
@@ -12,9 +13,15 @@ import (
 func init() {
 	orgCmd.AddCommand(createOrgCmd)
 	orgCmd.AddCommand(updateOrgCmd)
+	orgCmd.AddCommand(getOrgCmd)
 	orgCmd.AddCommand(listOrgCmd)
 	orgCmd.AddCommand(deleteOrgCmd)
 	rootCmd.AddCommand(orgCmd)
+	listOrgCmd.Flags().String("domain", "", "Filter by domain")
+	listOrgCmd.Flags().Int("limit", 0, "Limit the number of results")
+	listOrgCmd.Flags().String("before", "", "Cursor for results before a specific item")
+	listOrgCmd.Flags().String("after", "", "Cursor for results after a specific item")
+	listOrgCmd.Flags().String("order", "", "Order of results (asc or desc)")
 }
 
 var orgCmd = &cobra.Command{
@@ -68,17 +75,18 @@ var updateOrgCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		organizationId := args[0]
 		name := args[1]
-		var domain string
-		var state organizations.OrganizationDomainDataState
-		var hasDomain, hasState bool
+		var domainData []organizations.OrganizationDomainData
 
 		if len(args) > 2 {
-			domain = args[2]
-			hasDomain = true
+			domainData = append(domainData, organizations.OrganizationDomainData{Domain: args[2], State: "verified"})
 		}
 		if len(args) > 3 {
-			state = organizations.OrganizationDomainDataState(args[3])
-			hasState = true
+			state := organizations.OrganizationDomainDataState(args[3])
+			if len(domainData) > 0 {
+				domainData[0].State = state
+			} else {
+				domainData = append(domainData, organizations.OrganizationDomainData{State: state})
+			}
 		}
 
 		orgOpts := organizations.UpdateOrganizationOpts{
@@ -86,15 +94,8 @@ var updateOrgCmd = &cobra.Command{
 			Name:         name,
 		}
 
-		if hasDomain || hasState {
-			domainData := organizations.OrganizationDomainData{}
-			if hasDomain {
-				domainData.Domain = domain
-			}
-			if hasState {
-				domainData.State = state
-			}
-			orgOpts.DomainData = []organizations.OrganizationDomainData{domainData}
+		if len(domainData) > 0 {
+			orgOpts.DomainData = domainData
 		}
 		org, err := organizations.UpdateOrganization(
 			context.Background(),
@@ -104,9 +105,32 @@ var updateOrgCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error updating organization: %v", err)
 		}
-
+		fmt.Println(org)
 		orgJson, _ := json.MarshalIndent(org, "", "  ")
 		fmt.Printf("Updated organization:\n%s\n", string(orgJson))
+		return nil
+	},
+}
+var getOrgCmd = &cobra.Command{
+	Use:     "get",
+	Short:   "Get an organization",
+	Long:    "Get an organization by id. Find the organization's id by listing your organizations.",
+	Example: `workos organization get <organizationId>`,
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		organizationId := args[0]
+		org, err := organizations.GetOrganization(
+			context.Background(),
+			organizations.GetOrganizationOpts{
+				Organization: organizationId,
+			},
+		)
+
+		if err != nil {
+			return fmt.Errorf("error getting organization: %v", err)
+		}
+		orgJson, _ := json.MarshalIndent(org, "", "  ")
+		fmt.Printf("Organization:\n%s\n", string(orgJson))
 		return nil
 	},
 }
@@ -128,7 +152,8 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 
 		var domains []string
 		if domain != "" {
-			domains = []string{domain}
+			domains = strings.Fields(domain)
+
 		}
 
 		var orgOrder organizations.Order
@@ -186,13 +211,4 @@ var deleteOrgCmd = &cobra.Command{
 		fmt.Printf("Deleted organization %s", organizationId)
 		return nil
 	},
-}
-
-func init() {
-	// Define flags
-	listOrgCmd.Flags().String("domain", "", "Filter by domain")
-	listOrgCmd.Flags().Int("limit", 0, "Limit the number of results")
-	listOrgCmd.Flags().String("before", "", "Cursor for results before a specific item")
-	listOrgCmd.Flags().String("after", "", "Cursor for results after a specific item")
-	listOrgCmd.Flags().String("order", "", "Order of results (asc or desc)")
 }
