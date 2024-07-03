@@ -183,7 +183,7 @@ var deleteOrgCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error deleting organization: %v", err)
 		}
-		fmt.Printf("Organization Id: %s was successfully deleted.", organizationId)
+		fmt.Printf("Deleted organization %s", organizationId)
 		return nil
 	},
 }
