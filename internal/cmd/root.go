@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"context"
+	"log"
+
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/config"
 	"github.com/workos/workos-go/v4/pkg/organizations"
-	"log"
 )
 
 var cmdConfig *config.Config
@@ -47,5 +48,8 @@ func GetConfigOrExit() *config.Config {
 func initConfig() {
 	cmdConfig = config.LoadConfig()
 	organizations.SetAPIKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
+	if cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint != "" {
+		organizations.DefaultClient.Endpoint = cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint
+	}
 	//fga.SetApiKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
 }

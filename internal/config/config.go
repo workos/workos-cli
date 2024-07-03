@@ -25,6 +25,7 @@ type ApiKey struct {
 	Name        string `mapstructure:"name"        json:"name"`
 	Value       string `mapstructure:"value"       json:"value"`
 	Environment string `mapstructure:"environment" json:"environment"`
+	Endpoint    string `mapstructure:"endpoint"    json:"endpoint"`
 }
 
 func (c Config) Write() error {
