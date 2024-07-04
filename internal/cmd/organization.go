@@ -33,29 +33,35 @@ var orgCmd = &cobra.Command{
 }
 
 var createOrgCmd = &cobra.Command{
-	Use:     "create <name> <domain> [state]",
+	Use:     "create <name> [domain]:[state]",
 	Short:   "Create a new organization with a specified name and domain",
 	Long:    "Create a new organization with a specified name and domain. Optionally, specify the state of the domain (verified or pending).",
-	Example: "workos organization create FooCorp foo-corp.com pending",
-	Args:    cobra.RangeArgs(2, 3),
+	Example: "workos organization create FooCorp foo-corp.com:pending",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		domain := args[1]
-		state := organizations.Pending
-		if len(args) == 3 {
-			state = organizations.OrganizationDomainDataState(args[2])
+		domainData := []organizations.OrganizationDomainData{}
+
+		for _, arg := range args[1:] {
+			parts := strings.Split(arg, ":")
+			domain := parts[0]
+			state := organizations.Pending // Default state
+
+			if len(parts) == 2 {
+				state = organizations.OrganizationDomainDataState(parts[1])
+			}
+
+			domainData = append(domainData, organizations.OrganizationDomainData{
+				Domain: domain,
+				State:  state,
+			})
 		}
 
 		org, err := organizations.CreateOrganization(
 			context.Background(),
 			organizations.CreateOrganizationOpts{
-				Name: name,
-				DomainData: []organizations.OrganizationDomainData{
-					{
-						Domain: domain,
-						State:  state,
-					},
-				},
+				Name:       name,
+				DomainData: domainData,
 			},
 		)
 		if err != nil {
