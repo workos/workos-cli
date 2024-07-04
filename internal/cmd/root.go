@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/config"
+	"github.com/workos/workos-go/v4/pkg/fga"
 	"github.com/workos/workos-go/v4/pkg/organizations"
 )
 
@@ -51,5 +52,5 @@ func initConfig() {
 	if cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint != "" {
 		organizations.DefaultClient.Endpoint = cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint
 	}
-	//fga.SetApiKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
+	fga.SetAPIKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
 }

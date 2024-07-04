@@ -9,6 +9,8 @@ require (
 	github.com/workos/workos-go/v4 v4.14.0
 )
 
+replace github.com/workos/workos-go/v4 v4.14.0 => ../workos-go
+
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
