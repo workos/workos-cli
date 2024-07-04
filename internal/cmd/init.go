@@ -38,7 +38,7 @@ var initCmd = &cobra.Command{
 			Title("Give this API key a unique name (e.g. john-local-dev).").
 			Value(&name).
 			Validate(func(s string) error {
-				if !regexp.MustCompile("[a-z0-9\\-_]+").Match([]byte(s)) {
+				if !regexp.MustCompile(ApiKeyRegex).Match([]byte(s)) {
 					return errors.New("the name can only contain alphanumeric characters and hyphens (-) or underscores (_)")
 				}
 				return nil
