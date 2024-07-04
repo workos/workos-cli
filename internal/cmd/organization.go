@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-go/v4/pkg/organizations"
 )
@@ -183,9 +185,28 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 			return fmt.Errorf("error listing organizations: %v", err)
 		}
 
+		s := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
+		t := table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
+		t.Headers(s("ID"), s("Name"), s("Domains"))
+
 		// Print organizations
-		orgJson, _ := json.MarshalIndent(org, "", "  ")
-		fmt.Printf("Organizations:\n%s\n", string(orgJson))
+		//orgJson, _ := json.MarshalIndent(org, "", "  ")
+		//fmt.Printf("Organizations:\n%s\n", string(orgJson))
+
+		for _, row := range org.Data {
+			domains := []string{}
+			for _, d := range row.Domains {
+				domains = append(domains, d.Domain)
+			}
+
+			t.Row(
+				row.ID,
+				row.Name,
+				strings.Join(domains, ", "),
+			)
+		}
+		fmt.Println(t.Render())
+
 		return nil
 	},
 }
