@@ -45,7 +45,7 @@ var createOrgCmd = &cobra.Command{
 		for _, arg := range args[1:] {
 			parts := strings.Split(arg, ":")
 			domain := parts[0]
-			state := organizations.Pending // Default state
+			state := organizations.Verified // Default state
 
 			if len(parts) == 2 {
 				state = organizations.OrganizationDomainDataState(parts[1])
