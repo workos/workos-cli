@@ -19,9 +19,13 @@ var objectTypesFile string
 
 func init() {
 	// object-types
+	listObjectTypesCmd.Flags().Int("limit", 10, "limit the number of results returned")
+	listObjectTypesCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
+	listObjectTypesCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
+	listObjectTypesCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
 	objectTypeCmd.AddCommand(listObjectTypesCmd)
-	objectTypeCmd.AddCommand(applyObjectTypesCmd)
 	applyObjectTypesCmd.Flags().StringVarP(&objectTypesFile, "file", "f", "", "file containing object type definitions")
+	objectTypeCmd.AddCommand(applyObjectTypesCmd)
 	fgaCmd.AddCommand(objectTypeCmd)
 
 	// warrants
@@ -29,31 +33,31 @@ func init() {
 	fgaCmd.AddCommand(removeRelationCmd)
 
 	// check
-	fgaCmd.AddCommand(checkRelationCmd)
 	checkRelationCmd.Flags().StringP("warrantToken", "w", "", "warrant token to use for check")
 	checkRelationCmd.Flags().String("assert", "", "assert that the check is true or false")
 	checkRelationCmd.Flags().BoolP("debug", "d", false, "run check in debug mode")
+	fgaCmd.AddCommand(checkRelationCmd)
 
 	// objects
 	objectCmd.AddCommand(createObjectCmd)
-	objectCmd.AddCommand(listObjectsCmd)
 	listObjectsCmd.Flags().String("type", "", "object type to filter results by")
 	listObjectsCmd.Flags().String("search", "", "search term to filter a list of results by")
 	listObjectsCmd.Flags().Int("limit", 10, "limit the number of results returned")
 	listObjectsCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
 	listObjectsCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
 	listObjectsCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
+	objectCmd.AddCommand(listObjectsCmd)
 	objectCmd.AddCommand(updateObjectCmd)
 	objectCmd.AddCommand(deleteObjectCmd)
 	fgaCmd.AddCommand(objectCmd)
 
 	// query
-	fgaCmd.AddCommand(queryCmd)
 	queryCmd.Flags().StringP("warrantToken", "w", "", "warrant token to use for query")
 	queryCmd.Flags().Int("limit", 10, "limit the number of results returned")
 	queryCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
 	queryCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
 	queryCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
+	fgaCmd.AddCommand(queryCmd)
 
 	rootCmd.AddCommand(fgaCmd)
 }
@@ -126,7 +130,7 @@ var applyObjectTypesCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var bytes []byte
 		var err error
-		if objectTypesFile == "" {
+		if objectTypesFile != "" {
 			jsonFile, err := os.Open(objectTypesFile)
 			if err != nil {
 				return err
