@@ -49,8 +49,9 @@ func GetConfigOrExit() *config.Config {
 func initConfig() {
 	cmdConfig = config.LoadConfig()
 	organizations.SetAPIKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
+	fga.SetAPIKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
 	if cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint != "" {
 		organizations.DefaultClient.Endpoint = cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint
+		fga.DefaultClient.Endpoint = cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Endpoint
 	}
-	fga.SetAPIKey(cmdConfig.ApiKeys[cmdConfig.ActiveApiKey].Value)
 }
