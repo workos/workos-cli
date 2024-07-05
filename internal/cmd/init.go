@@ -50,8 +50,12 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		err = huh.NewInput().
-			Title("What environment is this API key for (e.g. Production, Sandbox, etc.)?").
+		err = huh.NewSelect[string]().
+			Title("What type of environment is this API key for?").
+			Options(
+				huh.NewOption(EnvironmentProduction, EnvironmentProduction),
+				huh.NewOption(EnvironmentSandbox, EnvironmentSandbox),
+			).
 			Value(&environment).
 			Run()
 		if err != nil {

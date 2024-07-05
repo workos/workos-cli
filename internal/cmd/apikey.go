@@ -10,7 +10,11 @@ import (
 	"github.com/workos/workos-cli/internal/config"
 )
 
-const ApiKeyRegex = `[a-z0-9\-_]+`
+const (
+	ApiKeyRegex           = `[a-z0-9\-_]+`
+	EnvironmentProduction = "Production"
+	EnvironmentSandbox    = "Sandbox"
+)
 
 func init() {
 	apiKeyCmd.AddCommand(addApiKeyCmd)
@@ -40,6 +44,7 @@ var addApiKeyCmd = &cobra.Command{
 			apiKey      string
 			name        string
 			environment string
+			endpoint    string
 		)
 
 		err := huh.NewInput().
@@ -64,9 +69,21 @@ var addApiKeyCmd = &cobra.Command{
 			return err
 		}
 
-		err = huh.NewInput().
-			Title("What environment is this API key for (e.g. Production, Sandbox, etc.)?").
+		err = huh.NewSelect[string]().
+			Title("What type of environment is this API key for?").
+			Options(
+				huh.NewOption(EnvironmentProduction, EnvironmentProduction),
+				huh.NewOption(EnvironmentSandbox, EnvironmentSandbox),
+			).
 			Value(&environment).
+			Run()
+		if err != nil {
+			return err
+		}
+
+		err = huh.NewInput().
+			Title("Enter an API endpoint (optional, defaults to https://api.workos.com).").
+			Value(&endpoint).
 			Run()
 		if err != nil {
 			return err
@@ -76,6 +93,7 @@ var addApiKeyCmd = &cobra.Command{
 			Value:       apiKey,
 			Name:        name,
 			Environment: environment,
+			Endpoint:    endpoint,
 		}
 		err = cfg.Write()
 		if err != nil {
@@ -138,8 +156,15 @@ var switchApiKeyCmd = &cobra.Command{
 		var selectedApiKey string
 		apiKeyOptions := make([]huh.Option[string], len(config.ApiKeys))
 		i := 0
-		for name := range config.ApiKeys {
-			apiKeyOptions[i] = huh.NewOption(name, name)
+		for name, apiKey := range config.ApiKeys {
+			label := name
+			if apiKey.Environment == EnvironmentSandbox {
+				label = fmt.Sprintf("%s [%s]", label, EnvironmentSandbox)
+			}
+			if apiKey.Endpoint != "" {
+				label = fmt.Sprintf("%s [%s]", label, apiKey.Endpoint)
+			}
+			apiKeyOptions[i] = huh.NewOption(label, name)
 			i++
 		}
 
