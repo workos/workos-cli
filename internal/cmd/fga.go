@@ -116,7 +116,23 @@ var listObjectTypesCmd = &cobra.Command{
 			return fmt.Errorf("error listing object types: %v", err)
 		}
 
-		fmt.Printf("object types: %v", objectTypes)
+		tbl := printer.NewTable().Headers(
+			printer.YellowText("Type"),
+			printer.YellowText("Definition"),
+		)
+		for _, objectType := range objectTypes.Data {
+			definitionString, err := json.MarshalIndent(objectType, "", "    ")
+			if err != nil {
+				return fmt.Errorf("error listing object types: %v", err)
+			}
+			tbl.Row(
+				objectType.Type,
+				string(definitionString),
+			)
+		}
+
+		fmt.Println(tbl.Render())
+
 		return nil
 	},
 }
@@ -350,7 +366,25 @@ var listObjectsCmd = &cobra.Command{
 			return fmt.Errorf("error listing objects: %v", err)
 		}
 
-		fmt.Printf("objects: %v", objects)
+		tbl := printer.NewTable().Headers(
+			printer.YellowText("Object Type"),
+			printer.YellowText("Object ID"),
+			printer.YellowText("Meta"),
+		)
+		for _, object := range objects.Data {
+			metaString, err := json.MarshalIndent(object.Meta, "", "    ")
+			if err != nil {
+				return fmt.Errorf("error listing objects: %v", err)
+			}
+			tbl.Row(
+				object.ObjectType,
+				object.ObjectId,
+				string(metaString),
+			)
+		}
+
+		fmt.Println(tbl.Render())
+
 		return nil
 	},
 }
