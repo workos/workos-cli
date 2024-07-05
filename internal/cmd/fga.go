@@ -1,22 +1,28 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/printer"
 	"github.com/workos/workos-go/v4/pkg/fga"
-	"os"
-	"strconv"
-	"strings"
 )
+
+var objectTypesFile string
 
 func init() {
 	// object-types
 	fgaCmd.AddCommand(listObjectTypesCmd)
 	fgaCmd.AddCommand(applyObjectTypesCmd)
+	applyObjectTypesCmd.Flags().StringVarP(&objectTypesFile, "file", "f", "", "file containing object type definitions")
 
 	// warrants
 	fgaCmd.AddCommand(assignRelationCmd)
@@ -31,7 +37,7 @@ func init() {
 	// objects
 	fgaCmd.AddCommand(createObjectCmd)
 	fgaCmd.AddCommand(listObjectsCmd)
-	listObjectsCmd.Flags().String("type", "", "object type to filter results by")
+	listObjectsCmd.Flags().String("objectType", "", "object type to filter results by")
 	listObjectsCmd.Flags().String("search", "", "search term to filter a list of results by")
 	listObjectsCmd.Flags().Int("limit", 10, "limit the number of results returned")
 	listObjectsCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
@@ -64,6 +70,43 @@ var listObjectTypesCmd = &cobra.Command{
 	Example: "workos fga objecttype list --limit=5",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		limit, err := cmd.Flags().GetInt("limit")
+		if err != nil {
+			return fmt.Errorf("invalid limit flag")
+		}
+		before, err := cmd.Flags().GetString("before")
+		if err != nil {
+			return fmt.Errorf("invalid before flag")
+		}
+		after, err := cmd.Flags().GetString("after")
+		if err != nil {
+			return fmt.Errorf("invalid after flag")
+		}
+		order, err := cmd.Flags().GetString("order")
+		if err != nil {
+			return fmt.Errorf("invalid order flag")
+		}
+		var orderFilter fga.Order
+		if order != "" {
+			if strings.ToLower(order) == "asc" {
+				orderFilter = fga.Asc
+			} else {
+				orderFilter = fga.Desc
+			}
+		}
+
+		objectTypes, err := fga.ListObjectTypes(context.Background(), fga.ListObjectTypesOpts{
+			Limit:  limit,
+			Before: before,
+			After:  after,
+			Order:  orderFilter,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing object types: %v", err)
+		}
+
+		fmt.Printf("object types: %v", objectTypes)
+
 		return nil
 	},
 }
@@ -75,6 +118,39 @@ var applyObjectTypesCmd = &cobra.Command{
 	Example: "workos fga objecttype apply -f object-types.json",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var bytes []byte
+		var err error
+		if objectTypesFile == "" {
+			jsonFile, err := os.Open(objectTypesFile)
+			if err != nil {
+				return err
+			}
+			defer jsonFile.Close()
+
+			bytes, err = io.ReadAll(jsonFile)
+			if err != nil {
+				return err
+			}
+		} else {
+			bytes, err = io.ReadAll(bufio.NewReader(os.Stdin))
+			if err != nil {
+				return err
+			}
+		}
+
+		var objectTypes []fga.UpdateObjectTypeOpts
+		err = json.Unmarshal(bytes, &objectTypes)
+		if err != nil {
+			return err
+		}
+
+		_, err = fga.BatchUpdateObjectTypes(context.Background(), objectTypes)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("object types updated")
+
 		return nil
 	},
 }
@@ -174,6 +250,35 @@ var createObjectCmd = &cobra.Command{
 	Example: `workos fga object create user:john '{"email":"john.doe@workos.com"}'`,
 	Args:    cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		objectType, objectId, valid := strings.Cut(args[0], ":")
+		if !valid {
+			return fmt.Errorf("invalid object: %s", args[0])
+		}
+
+		var meta map[string]interface{}
+		var err error
+		if len(args) == 2 {
+			err = json.Unmarshal([]byte(args[1]), &meta)
+			if err != nil {
+				return fmt.Errorf("invalid object meta: %s", args[1])
+			}
+		}
+
+		createdObject, err := fga.CreateObject(context.Background(), fga.CreateObjectOpts{
+			ObjectType: objectType,
+			ObjectId:   objectId,
+			Meta:       meta,
+		})
+		if err != nil {
+			return fmt.Errorf("error creating object: %v", err)
+		}
+
+		if len(createdObject.Meta) > 0 {
+			fmt.Printf("created object %s:%s (%v)\n", createdObject.ObjectType, createdObject.ObjectId, createdObject.Meta)
+		} else {
+			fmt.Printf("created object %s:%s\n", createdObject.ObjectType, createdObject.ObjectId)
+		}
+
 		return nil
 	},
 }
@@ -185,10 +290,53 @@ var listObjectsCmd = &cobra.Command{
 	Example: "workos fga object list --objectType=user --limit=15",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		//limit, _ := cmd.Flags().GetInt("limit")
-		//before, _ := cmd.Flags().GetString("before")
-		//after, _ := cmd.Flags().GetString("after")
-		//order, _ := cmd.Flags().GetString("order")
+		objectType, err := cmd.Flags().GetString("objectType")
+		if err != nil {
+			return fmt.Errorf("invalid objectType flag")
+		}
+		search, err := cmd.Flags().GetString("search")
+		if err != nil {
+			return fmt.Errorf("invalid search flag")
+		}
+		limit, err := cmd.Flags().GetInt("limit")
+		if err != nil {
+			return fmt.Errorf("invalid limit flag")
+		}
+		before, err := cmd.Flags().GetString("before")
+		if err != nil {
+			return fmt.Errorf("invalid before flag")
+		}
+		after, err := cmd.Flags().GetString("after")
+		if err != nil {
+			return fmt.Errorf("invalid after flag")
+		}
+		order, err := cmd.Flags().GetString("order")
+		if err != nil {
+			return fmt.Errorf("invalid order flag")
+		}
+		var orderFilter fga.Order
+		if order != "" {
+			if strings.ToLower(order) == "asc" {
+				orderFilter = fga.Asc
+			} else {
+				orderFilter = fga.Desc
+			}
+		}
+
+		objects, err := fga.ListObjects(context.Background(), fga.ListObjectsOpts{
+			ObjectType: objectType,
+			Search:     search,
+			Limit:      limit,
+			Before:     before,
+			After:      after,
+			Order:      orderFilter,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing objects: %v", err)
+		}
+
+		fmt.Printf("objects: %v", objects)
+
 		return nil
 	},
 }
@@ -200,6 +348,28 @@ var updateObjectCmd = &cobra.Command{
 	Example: `workos fga object update user:john '{"email":"john.doe@workos.com"}'`,
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		objectType, objectId, valid := strings.Cut(args[0], ":")
+		if !valid {
+			return fmt.Errorf("invalid object: %s", args[0])
+		}
+
+		var meta map[string]interface{}
+		err := json.Unmarshal([]byte(args[1]), &meta)
+		if err != nil {
+			return fmt.Errorf("invalid object meta: %s", args[1])
+		}
+
+		updatedObject, err := fga.UpdateObject(context.Background(), fga.UpdateObjectOpts{
+			ObjectType: objectType,
+			ObjectId:   objectId,
+			Meta:       meta,
+		})
+		if err != nil {
+			return fmt.Errorf("error updating object: %v", err)
+		}
+
+		fmt.Printf("updated object %s:%s\n", updatedObject.ObjectType, updatedObject.ObjectId)
+
 		return nil
 	},
 }
@@ -211,6 +381,21 @@ var deleteObjectCmd = &cobra.Command{
 	Example: `workos fga object delete user:john`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		objectType, objectId, valid := strings.Cut(args[0], ":")
+		if !valid {
+			return fmt.Errorf("invalid object: %s", args[0])
+		}
+
+		err := fga.DeleteObject(context.Background(), fga.DeleteObjectOpts{
+			ObjectType: objectType,
+			ObjectId:   objectId,
+		})
+		if err != nil {
+			return fmt.Errorf("error deleting object: %v", err)
+		}
+
+		fmt.Printf("deleted object %s\n", args[0])
+
 		return nil
 	},
 }
