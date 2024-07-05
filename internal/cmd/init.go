@@ -16,8 +16,8 @@ func init() {
 
 var initCmd = &cobra.Command{
 	Use:     "init",
-	Short:   "Initialize the CLI for use",
-	Long:    "Initialize the CLI for use, including configuring an environment and API key.",
+	Short:   "Initialize the CLI",
+	Long:    "Initialize the CLI by configuring an API key for it to use.",
 	Example: "workos init",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {

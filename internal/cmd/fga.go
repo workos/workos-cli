@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/printer"
 	"github.com/workos/workos-go/v4/pkg/fga"
@@ -106,7 +105,6 @@ var listObjectTypesCmd = &cobra.Command{
 		}
 
 		fmt.Printf("object types: %v", objectTypes)
-
 		return nil
 	},
 }
@@ -150,7 +148,6 @@ var applyObjectTypesCmd = &cobra.Command{
 		}
 
 		fmt.Println("object types updated")
-
 		return nil
 	},
 }
@@ -286,8 +283,8 @@ var createObjectCmd = &cobra.Command{
 var listObjectsCmd = &cobra.Command{
 	Use:     "object list",
 	Short:   "List objects",
-	Long:    "List objects, optionally specifying the '--objectType' flag to filter to objects of a specific type or providing common flags to filter and paginate the results.",
-	Example: "workos fga object list --objectType=user --limit=15",
+	Long:    "List objects, optionally specifying the '--type' flag to filter to objects of a specific type or providing common flags to filter and paginate the results.",
+	Example: "workos fga object list --type=user --limit=15",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		objectType, err := cmd.Flags().GetString("objectType")
@@ -336,7 +333,6 @@ var listObjectsCmd = &cobra.Command{
 		}
 
 		fmt.Printf("objects: %v", objects)
-
 		return nil
 	},
 }
@@ -356,7 +352,7 @@ var updateObjectCmd = &cobra.Command{
 		var meta map[string]interface{}
 		err := json.Unmarshal([]byte(args[1]), &meta)
 		if err != nil {
-			return fmt.Errorf("invalid object meta: %s", args[1])
+			return fmt.Errorf("invalid meta: %s", args[1])
 		}
 
 		updatedObject, err := fga.UpdateObject(context.Background(), fga.UpdateObjectOpts{
@@ -369,7 +365,6 @@ var updateObjectCmd = &cobra.Command{
 		}
 
 		fmt.Printf("updated object %s:%s\n", updatedObject.ObjectType, updatedObject.ObjectId)
-
 		return nil
 	},
 }
@@ -395,7 +390,6 @@ var deleteObjectCmd = &cobra.Command{
 		}
 
 		fmt.Printf("deleted object %s\n", args[0])
-
 		return nil
 	},
 }
@@ -418,9 +412,9 @@ var checkRelationCmd = &cobra.Command{
 			return fmt.Errorf("invalid object: %s", args[0])
 		}
 
-		var checkContext map[string]interface{}
+		var policyContext map[string]interface{}
 		if len(args) > 3 {
-			err := json.Unmarshal([]byte(args[3]), &checkContext)
+			err := json.Unmarshal([]byte(args[3]), &policyContext)
 			if err != nil {
 				return fmt.Errorf("invalid context: %s", args[3])
 			}
@@ -438,7 +432,7 @@ var checkRelationCmd = &cobra.Command{
 				ObjectId:   subjectId,
 				Relation:   subjectRelation,
 			},
-			Context: checkContext,
+			Context: policyContext,
 		}
 		result, err := fga.Check(
 			context.Background(),
@@ -449,7 +443,7 @@ var checkRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error performing check: %v", err)
+			return fmt.Errorf("error evaluating check: %v", err)
 		}
 
 		warrantCheckString, err := warrantCheckAsString(warrantCheck)
@@ -465,15 +459,15 @@ var checkRelationCmd = &cobra.Command{
 			}
 
 			if assertBool == result.Authorized() {
-				fmt.Printf("%s %s\n", termenv.String(printer.Checkmark, fmt.Sprintf("assert %t", assertBool)).Foreground(printer.Green), warrantCheckString)
+				fmt.Printf("%s %s\n", printer.GreenText(printer.Checkmark, fmt.Sprintf("assert %t", assertBool)), warrantCheckString)
 			} else {
-				fmt.Printf("%s %s\n", termenv.String(printer.Cross, fmt.Sprintf("assert %t", assertBool)).Foreground(printer.Red), warrantCheckString)
+				fmt.Printf("%s %s\n", printer.RedText(printer.Cross, fmt.Sprintf("assert %t", assertBool)), warrantCheckString)
 				os.Exit(1)
 			}
 		} else if result.Authorized() {
-			fmt.Printf("%s %s\n", termenv.String(printer.Checkmark, "true").Foreground(printer.Green), warrantCheckString)
+			fmt.Printf("%s %s\n", printer.GreenText(printer.Checkmark, "true"), warrantCheckString)
 		} else {
-			fmt.Printf("%s %s\n", termenv.String(printer.Cross, "false").Foreground(printer.Red), warrantCheckString)
+			fmt.Printf("%s %s\n", printer.RedText(printer.Cross, "false"), warrantCheckString)
 		}
 
 		return nil

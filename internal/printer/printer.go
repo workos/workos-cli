@@ -3,17 +3,19 @@ package printer
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"os"
 	"runtime"
-
-	"github.com/muesli/termenv"
 )
 
-var Purple = termenv.ColorProfile().Color("#6310FF")
-var Red = termenv.ColorProfile().Color("#FF0000")
-var Green = termenv.ColorProfile().Color("#00FF00")
 var Checkmark = "✔"
 var Cross = "✖"
+var GreenText = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render
+var RedText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
+var YellowText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
+var TableHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
+var Table = table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
 
 func init() {
 	if runtime.GOOS == "windows" {
