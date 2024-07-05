@@ -127,7 +127,7 @@ var assignRelationCmd = &cobra.Command{
 }
 
 var removeRelationCmd = &cobra.Command{
-	Use:     "assign <subject> <relation> <object>",
+	Use:     "remove <subject> <relation> <object>",
 	Short:   "Remove a relation",
 	Long:    "Remove a relation between a given subject and a given object.",
 	Example: "workos fga remove user:john owner document:xyz",
