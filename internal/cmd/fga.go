@@ -19,9 +19,10 @@ var objectTypesFile string
 
 func init() {
 	// object-types
-	fgaCmd.AddCommand(listObjectTypesCmd)
-	fgaCmd.AddCommand(applyObjectTypesCmd)
+	objectTypeCmd.AddCommand(listObjectTypesCmd)
+	objectTypeCmd.AddCommand(applyObjectTypesCmd)
 	applyObjectTypesCmd.Flags().StringVarP(&objectTypesFile, "file", "f", "", "file containing object type definitions")
+	fgaCmd.AddCommand(objectTypeCmd)
 
 	// warrants
 	fgaCmd.AddCommand(assignRelationCmd)
@@ -34,16 +35,17 @@ func init() {
 	checkRelationCmd.Flags().BoolP("debug", "d", false, "run check in debug mode")
 
 	// objects
-	fgaCmd.AddCommand(createObjectCmd)
-	fgaCmd.AddCommand(listObjectsCmd)
-	listObjectsCmd.Flags().String("objectType", "", "object type to filter results by")
+	objectCmd.AddCommand(createObjectCmd)
+	objectCmd.AddCommand(listObjectsCmd)
+	listObjectsCmd.Flags().String("type", "", "object type to filter results by")
 	listObjectsCmd.Flags().String("search", "", "search term to filter a list of results by")
 	listObjectsCmd.Flags().Int("limit", 10, "limit the number of results returned")
 	listObjectsCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
 	listObjectsCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
 	listObjectsCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
-	fgaCmd.AddCommand(updateObjectCmd)
-	fgaCmd.AddCommand(deleteObjectCmd)
+	objectCmd.AddCommand(updateObjectCmd)
+	objectCmd.AddCommand(deleteObjectCmd)
+	fgaCmd.AddCommand(objectCmd)
 
 	// query
 	fgaCmd.AddCommand(queryCmd)
@@ -62,8 +64,14 @@ var fgaCmd = &cobra.Command{
 	Long:  "Manage FGA-specific resources like object types, warrants, and objects and perform check and query operations to validate your FGA model.",
 }
 
+var objectTypeCmd = &cobra.Command{
+	Use:   "objecttype",
+	Short: "Manage your object types",
+	Long:  "List and apply object types. Object types are used to define the types of objects in your system and the relations between them.",
+}
+
 var listObjectTypesCmd = &cobra.Command{
-	Use:     "objecttype list",
+	Use:     "list",
 	Short:   "List object types",
 	Long:    "List object types, optionally providing common flags to filter and paginate the results.",
 	Example: "workos fga objecttype list --limit=5",
@@ -110,7 +118,7 @@ var listObjectTypesCmd = &cobra.Command{
 }
 
 var applyObjectTypesCmd = &cobra.Command{
-	Use:     "objecttype apply",
+	Use:     "apply",
 	Short:   "Apply a set of object types",
 	Long:    "Apply a set of object types from a specified file. This command will create any object types present in the file and delete any object types that are not.",
 	Example: "workos fga objecttype apply -f object-types.json",
@@ -240,6 +248,12 @@ var removeRelationCmd = &cobra.Command{
 	},
 }
 
+var objectCmd = &cobra.Command{
+	Use:   "object",
+	Short: "Manage your objects",
+	Long:  "Create, update, read, list and delete objects.",
+}
+
 var createObjectCmd = &cobra.Command{
 	Use:     "create <object> [meta]",
 	Short:   "Create a new object",
@@ -281,13 +295,13 @@ var createObjectCmd = &cobra.Command{
 }
 
 var listObjectsCmd = &cobra.Command{
-	Use:     "object list",
+	Use:     "list",
 	Short:   "List objects",
 	Long:    "List objects, optionally specifying the '--type' flag to filter to objects of a specific type or providing common flags to filter and paginate the results.",
 	Example: "workos fga object list --type=user --limit=15",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		objectType, err := cmd.Flags().GetString("objectType")
+		objectType, err := cmd.Flags().GetString("type")
 		if err != nil {
 			return fmt.Errorf("invalid objectType flag")
 		}
