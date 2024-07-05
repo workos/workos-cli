@@ -81,36 +81,8 @@ var listObjectTypesCmd = &cobra.Command{
 	Example: "workos fga objecttype list --limit=5",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		limit, err := cmd.Flags().GetInt("limit")
-		if err != nil {
-			return fmt.Errorf("invalid limit flag")
-		}
-		before, err := cmd.Flags().GetString("before")
-		if err != nil {
-			return fmt.Errorf("invalid before flag")
-		}
-		after, err := cmd.Flags().GetString("after")
-		if err != nil {
-			return fmt.Errorf("invalid after flag")
-		}
-		order, err := cmd.Flags().GetString("order")
-		if err != nil {
-			return fmt.Errorf("invalid order flag")
-		}
-		var orderFilter fga.Order
-		if order != "" {
-			if strings.ToLower(order) == "asc" {
-				orderFilter = fga.Asc
-			} else {
-				orderFilter = fga.Desc
-			}
-		}
-
 		objectTypes, err := fga.ListObjectTypes(context.Background(), fga.ListObjectTypesOpts{
-			Limit:  limit,
-			Before: before,
-			After:  after,
-			Order:  orderFilter,
+			Limit: 100,
 		})
 		if err != nil {
 			return fmt.Errorf("error listing object types: %v", err)
