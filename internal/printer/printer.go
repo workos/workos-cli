@@ -15,7 +15,6 @@ var GreenText = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render
 var RedText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
 var YellowText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
 var TableHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
-var Table = table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
 
 func init() {
 	if runtime.GOOS == "windows" {
@@ -35,4 +34,8 @@ func PrintJson(val any) {
 func PrintErrAndExit(msg string) {
 	_, _ = fmt.Fprintln(os.Stderr, "Error:", msg)
 	os.Exit(1)
+}
+
+func NewTable() *table.Table {
+	return table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
 }
