@@ -45,7 +45,7 @@ func (c Config) Write() error {
 }
 
 func LoadConfig() *Config {
-	// Look for .warrant.json in HOME dir and create an empty version if it doesn't exist
+	// Look for .workos.json in HOME dir and create an empty version if it doesn't exist
 	homeDir, err := os.UserHomeDir()
 	cobra.CheckErr(err)
 	_, err = os.Stat(homeDir + "/" + FileName)

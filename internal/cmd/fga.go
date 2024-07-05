@@ -104,7 +104,8 @@ var listObjectTypesCmd = &cobra.Command{
 		}
 
 		fmt.Println(tbl.Render())
-
+		fmt.Printf("before: %s\n", objectTypes.ListMetadata.Before)
+		fmt.Printf("after: %s\n", objectTypes.ListMetadata.After)
 		return nil
 	},
 }
@@ -194,7 +195,7 @@ var assignRelationCmd = &cobra.Command{
 			return fmt.Errorf("error assigning relation: %v", err)
 		}
 
-		fmt.Printf("%s assigned %s on %s:\nWarrant-Token: %s\n", args[0], args[1], args[2], res.WarrantToken)
+		fmt.Printf("assigned %s %s %s\nWarrant-Token: %s\n", args[0], args[1], args[2], res.WarrantToken)
 		return nil
 	},
 }
@@ -235,7 +236,7 @@ var removeRelationCmd = &cobra.Command{
 			return fmt.Errorf("error removing relation: %v", err)
 		}
 
-		fmt.Printf("removed %s from %s on %s:\nwarrant_token: %s\n", args[1], args[0], args[2], res.WarrantToken)
+		fmt.Printf("removed %s %s %s\nwarrant_token: %s\n", args[0], args[1], args[2], res.WarrantToken)
 		return nil
 	},
 }
@@ -295,7 +296,7 @@ var listObjectsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		objectType, err := cmd.Flags().GetString("type")
 		if err != nil {
-			return fmt.Errorf("invalid objectType flag")
+			return fmt.Errorf("invalid type flag")
 		}
 		search, err := cmd.Flags().GetString("search")
 		if err != nil {
@@ -356,7 +357,8 @@ var listObjectsCmd = &cobra.Command{
 		}
 
 		fmt.Println(tbl.Render())
-
+		fmt.Printf("before: %s\n", objects.ListMetadata.Before)
+		fmt.Printf("after: %s\n", objects.ListMetadata.After)
 		return nil
 	},
 }
@@ -536,17 +538,25 @@ var queryCmd = &cobra.Command{
 			printer.YellowText("Object ID"),
 			printer.YellowText("Relation"),
 			printer.YellowText("Implicit"),
+			printer.YellowText("Meta"),
 		)
 		for _, queryResult := range result.Data {
+			metaString, err := json.MarshalIndent(queryResult.Meta, "", "    ")
+			if err != nil {
+				return fmt.Errorf("error listing objects: %v", err)
+			}
 			tbl.Row(
 				queryResult.ObjectType,
 				queryResult.ObjectId,
 				queryResult.Relation,
 				strconv.FormatBool(queryResult.IsImplicit),
+				string(metaString),
 			)
 		}
 
 		fmt.Println(tbl.Render())
+		fmt.Printf("before: %s\n", result.ListMetadata.Before)
+		fmt.Printf("after: %s\n", result.ListMetadata.After)
 		return nil
 	},
 }
