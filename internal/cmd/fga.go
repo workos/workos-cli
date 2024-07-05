@@ -89,8 +89,8 @@ var listObjectTypesCmd = &cobra.Command{
 		}
 
 		tbl := printer.NewTable().Headers(
-			printer.YellowText("Type"),
-			printer.YellowText("Definition"),
+			printer.TableHeader("Type"),
+			printer.TableHeader("Definition"),
 		)
 		for _, objectType := range objectTypes.Data {
 			definitionString, err := json.MarshalIndent(objectType, "", "    ")
@@ -340,9 +340,9 @@ var listObjectsCmd = &cobra.Command{
 		}
 
 		tbl := printer.NewTable().Headers(
-			printer.YellowText("Object Type"),
-			printer.YellowText("Object ID"),
-			printer.YellowText("Meta"),
+			printer.TableHeader("Object Type"),
+			printer.TableHeader("Object ID"),
+			printer.TableHeader("Meta"),
 		)
 		for _, object := range objects.Data {
 			metaString, err := json.MarshalIndent(object.Meta, "", "    ")
@@ -534,11 +534,11 @@ var queryCmd = &cobra.Command{
 		}
 
 		tbl := printer.NewTable().Headers(
-			printer.YellowText("Object Type"),
-			printer.YellowText("Object ID"),
-			printer.YellowText("Relation"),
-			printer.YellowText("Implicit"),
-			printer.YellowText("Meta"),
+			printer.TableHeader("Object Type"),
+			printer.TableHeader("Object ID"),
+			printer.TableHeader("Relation"),
+			printer.TableHeader("Implicit"),
+			printer.TableHeader("Meta"),
 		)
 		for _, queryResult := range result.Data {
 			metaString, err := json.MarshalIndent(queryResult.Meta, "", "    ")

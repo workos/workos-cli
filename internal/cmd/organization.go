@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/workos/workos-cli/internal/list"
+	"github.com/workos/workos-cli/internal/printer"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-go/v4/pkg/organizations"
 )
@@ -177,7 +176,7 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 			}
 		}
 
-		org, err := organizations.ListOrganizations(
+		orgs, err := organizations.ListOrganizations(
 			context.Background(),
 			organizations.ListOrganizationsOpts{
 				Domains: domains,
@@ -191,24 +190,27 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 			return fmt.Errorf("error listing organizations: %v", err)
 		}
 
-		s := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
-		t := table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
-		t.Headers(s("ID"), s("Name"), s("Domains"))
-
-		for _, row := range org.Data {
+		tbl := printer.NewTable().Headers(
+			printer.TableHeader("ID"),
+			printer.TableHeader("Name"),
+			printer.TableHeader("Domains"),
+		)
+		for _, org := range orgs.Data {
 			var domains []string
-			for _, d := range row.Domains {
+			for _, d := range org.Domains {
 				domains = append(domains, d.Domain)
 			}
 
-			t.Row(
-				row.ID,
-				row.Name,
+			tbl.Row(
+				org.ID,
+				org.Name,
 				strings.Join(domains, ", "),
 			)
 		}
 
-		fmt.Println(t.Render())
+		fmt.Println(tbl.Render())
+		fmt.Printf("before: %s\n", orgs.ListMetadata.Before)
+		fmt.Printf("after: %s\n", orgs.ListMetadata.After)
 		return nil
 	},
 }

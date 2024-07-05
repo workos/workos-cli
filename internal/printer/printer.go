@@ -13,7 +13,7 @@ var Checkmark = "✔"
 var Cross = "✖"
 var GreenText = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render
 var RedText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
-var YellowText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
+var TableHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
 
 func init() {
 	if runtime.GOOS == "windows" {
