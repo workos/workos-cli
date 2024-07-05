@@ -10,6 +10,8 @@ import (
 	"github.com/workos/workos-cli/internal/config"
 )
 
+const ApiKeyRegex = `[a-z0-9\-_]+`
+
 func init() {
 	apiKeyCmd.AddCommand(addApiKeyCmd)
 	apiKeyCmd.AddCommand(removeApiKeyCmd)
@@ -52,7 +54,7 @@ var addApiKeyCmd = &cobra.Command{
 			Title("Give this API key a unique name (e.g. john-local-dev).").
 			Value(&name).
 			Validate(func(s string) error {
-				if !regexp.MustCompile("[a-z0-9\\-_]+").Match([]byte(s)) {
+				if !regexp.MustCompile(ApiKeyRegex).Match([]byte(s)) {
 					return errors.New("the name can only contain alphanumeric characters and hyphens (-) or underscores (_)")
 				}
 				return nil
@@ -99,7 +101,7 @@ var removeApiKeyCmd = &cobra.Command{
 			Title("Enter the name of the API key you would like to remove (e.g. john-local-dev)").
 			Value(&name).
 			Validate(func(s string) error {
-				if !regexp.MustCompile("[a-z0-9\\-_]+").Match([]byte(s)) {
+				if !regexp.MustCompile(ApiKeyRegex).Match([]byte(s)) {
 					return errors.New("the name can only contain alphanumeric characters and hyphens (-) or underscores (_)")
 				}
 				return nil
