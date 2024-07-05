@@ -495,6 +495,48 @@ var queryCmd = &cobra.Command{
 	Example: "workos fga query select document where user:john is owner",
 	Args:    cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		after, _ := cmd.Flags().GetString("after")
+		before, _ := cmd.Flags().GetString("before")
+		limit, _ := cmd.Flags().GetInt("limit")
+		order, _ := cmd.Flags().GetString("order")
+		warrantToken, _ := cmd.Flags().GetString("warrantToken")
+		var policyContext map[string]interface{}
+		if len(args) > 1 {
+			err := json.Unmarshal([]byte(args[3]), &policyContext)
+			if err != nil {
+				return fmt.Errorf("invalid context: %s", args[3])
+			}
+		}
+
+		result, err := fga.Query(context.Background(), fga.QueryOpts{
+			Query:        args[0],
+			Context:      policyContext,
+			Limit:        limit,
+			Before:       before,
+			After:        after,
+			Order:        fga.Order(order),
+			WarrantToken: warrantToken,
+		})
+		if err != nil {
+			return fmt.Errorf("error performing query: %v", err)
+		}
+
+		tbl := printer.NewTable().Headers(
+			printer.YellowText("Object Type"),
+			printer.YellowText("Object ID"),
+			printer.YellowText("Relation"),
+			printer.YellowText("Implicit"),
+		)
+		for _, queryResult := range result.Data {
+			tbl.Row(
+				queryResult.ObjectType,
+				queryResult.ObjectId,
+				queryResult.Relation,
+				strconv.FormatBool(queryResult.IsImplicit),
+			)
+		}
+
+		fmt.Println(tbl.Render())
 		return nil
 	},
 }
