@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/workos/workos-cli/internal/list"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
+	"github.com/workos/workos-cli/internal/list"
+	"github.com/workos/workos-cli/internal/views/forms"
+	"github.com/workos/workos-cli/internal/views/tables"
+
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-go/v4/pkg/organizations"
 )
@@ -38,35 +39,20 @@ var orgCmd = &cobra.Command{
 }
 
 var createOrgCmd = &cobra.Command{
-	Use:     "create <name> [domain]:[state]",
-	Short:   "Create a new organization with a specified name and domain",
-	Long:    "Create a new organization with a specified name and domain. Optionally, specify the state of the domain (verified or pending).",
-	Example: "workos organization create FooCorp foo-corp.com:pending",
-	Args:    cobra.MinimumNArgs(1),
+	Use:     "create",
+	Short:   "Create a new organization",
+	Long:    "Create a new organization",
+	Example: "workos organization create",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		var domainData []organizations.OrganizationDomainData
+		orgCreateOpts, err := forms.OrganizationCreate()
 
-		for _, arg := range args[1:] {
-			parts := strings.Split(arg, ":")
-			domain := parts[0]
-			state := organizations.Verified // Default state
-			if len(parts) == 2 {
-				state = organizations.OrganizationDomainDataState(parts[1])
-			}
-
-			domainData = append(domainData, organizations.OrganizationDomainData{
-				Domain: domain,
-				State:  state,
-			})
+		if err != nil {
+			return fmt.Errorf("error getting create org data: %v", err)
 		}
 
 		org, err := organizations.CreateOrganization(
 			context.Background(),
-			organizations.CreateOrganizationOpts{
-				Name:       name,
-				DomainData: domainData,
-			},
+			orgCreateOpts,
 		)
 		if err != nil {
 			return fmt.Errorf("error creating organization: %v", err)
@@ -123,6 +109,7 @@ var updateOrgCmd = &cobra.Command{
 		return nil
 	},
 }
+
 var getOrgCmd = &cobra.Command{
 	Use:     "get",
 	Short:   "Get an organization",
@@ -191,24 +178,7 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 			return fmt.Errorf("error listing organizations: %v", err)
 		}
 
-		s := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
-		t := table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
-		t.Headers(s("ID"), s("Name"), s("Domains"))
-
-		for _, row := range org.Data {
-			var domains []string
-			for _, d := range row.Domains {
-				domains = append(domains, d.Domain)
-			}
-
-			t.Row(
-				row.ID,
-				row.Name,
-				strings.Join(domains, ", "),
-			)
-		}
-
-		fmt.Println(t.Render())
+		fmt.Println(tables.OrganizationList(org))
 		return nil
 	},
 }
