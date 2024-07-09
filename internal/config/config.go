@@ -17,15 +17,15 @@ const (
 )
 
 type Config struct {
-	ActiveApiKey string            `mapstructure:"active_api_key" json:"active_api_key"`
-	ApiKeys      map[string]ApiKey `mapstructure:"api_keys"       json:"api_keys"`
+	ActiveEnvironment string                 `mapstructure:"active_environment" json:"active_environment"`
+	Environments      map[string]Environment `mapstructure:"environments"       json:"environments"`
 }
 
-type ApiKey struct {
-	Name        string `mapstructure:"name"        json:"name"`
-	Value       string `mapstructure:"value"       json:"value"`
-	Environment string `mapstructure:"environment" json:"environment"`
-	Endpoint    string `mapstructure:"endpoint"    json:"endpoint"`
+type Environment struct {
+	Endpoint string `mapstructure:"endpoint" json:"endpoint"`
+	Name     string `mapstructure:"name"     json:"name"`
+	Type     string `mapstructure:"type"     json:"type"`
+	ApiKey   string `mapstructure:"api_key"    json:"api_key"`
 }
 
 func (c Config) Write() error {

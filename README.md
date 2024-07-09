@@ -4,34 +4,48 @@
 
 ### MacOS (Homebrew)
 
+#### Install
+
 ```shell
 brew install workos/tap/workos-cli
 ```
 
-## Authentication
+#### Upgrade
 
-To authenticate the WorkOS CLI with the WorkOS API, use a new or existing API key from the WorkOS dashboard.
+```shell
+brew upgrade workos/tap/workos-cli
+```
+
+## Usage
+
+First, initialize the CLI:
 
 ```shell
 workos init
 ```
 
-Follow the prompts after running the `init` command to configure the CLI to use the specified API key.
+Follow the interactive prompts to configure the CLI for use with the specified environment.
 
-The CLI can be configured to use multiple API keys to make it easy to manage data in multiple environments.
+The CLI can be configured to work with multiple WorkOS environments.
 
 ```shell
-workos apikey add
+workos env add
 ```
 
-To switch between API keys, use the `apikey switch` command and select the API key you would like to use:
+To switch between environments, use the `env switch` command and select the environment you would like to switch to:
 
 ```shell
-workos apikey switch
+workos env switch
 ```
 
-To remove a configured API key from the CLI, use the `apikey remove` command and select the API key you would like to remove:
+To remove a configured environment from the CLI, use the `env remove` command and select the environment you would like to remove:
 
 ```shell
-workos apikey remove
+workos env remove
+```
+
+Once initialized, the CLI is ready to use:
+
+```shell
+workos [cmd] [args]
 ```

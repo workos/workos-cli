@@ -30,11 +30,15 @@ func PrintJson(val any) {
 	fmt.Printf("%s\n", string(bytes))
 }
 
+func PrintMsg(msg string) {
+	fmt.Printf("%s\n", msg)
+}
+
 func PrintErrAndExit(msg string) {
 	_, _ = fmt.Fprintln(os.Stderr, "Error:", msg)
 	os.Exit(1)
 }
 
-func NewTable() *table.Table {
-	return table.New().Border(lipgloss.NormalBorder()).Width(160).BorderHeader(true)
+func NewTable(width int) *table.Table {
+	return table.New().Border(lipgloss.NormalBorder()).Width(width).BorderHeader(true)
 }

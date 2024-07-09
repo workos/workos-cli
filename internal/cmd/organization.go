@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/workos/workos-cli/internal/list"
 	"github.com/workos/workos-cli/internal/printer"
 	"strings"
@@ -68,11 +68,11 @@ var createOrgCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error creating organization: %v", err)
+			return errors.Wrap(err, "error creating organization")
 		}
 
-		orgJson, _ := json.MarshalIndent(org, "", "  ")
-		fmt.Printf("Created organization:\n%s\n", string(orgJson))
+		printer.PrintMsg("Created organization")
+		printer.PrintJson(org)
 		return nil
 	},
 }
@@ -89,7 +89,7 @@ var updateOrgCmd = &cobra.Command{
 		var domainData []organizations.OrganizationDomainData
 
 		if len(args) > 2 {
-			domainData = append(domainData, organizations.OrganizationDomainData{Domain: args[2], State: "verified"})
+			domainData = append(domainData, organizations.OrganizationDomainData{Domain: args[2], State: organizations.Verified})
 		}
 		if len(args) > 3 {
 			state := organizations.OrganizationDomainDataState(args[3])
@@ -104,21 +104,20 @@ var updateOrgCmd = &cobra.Command{
 			Organization: organizationId,
 			Name:         name,
 		}
-
 		if len(domainData) > 0 {
 			orgOpts.DomainData = domainData
 		}
+
 		org, err := organizations.UpdateOrganization(
 			context.Background(),
 			orgOpts,
 		)
-
 		if err != nil {
-			return fmt.Errorf("error updating organization: %v", err)
+			return errors.Wrap(err, "error updating organization")
 		}
-		fmt.Println(org)
-		orgJson, _ := json.MarshalIndent(org, "", "  ")
-		fmt.Printf("Updated organization:\n%s\n", string(orgJson))
+
+		printer.PrintMsg("Updated organization")
+		printer.PrintJson(org)
 		return nil
 	},
 }
@@ -136,12 +135,11 @@ var getOrgCmd = &cobra.Command{
 				Organization: organizationId,
 			},
 		)
-
 		if err != nil {
-			return fmt.Errorf("error getting organization: %v", err)
+			return errors.Wrap(err, "error getting organization")
 		}
-		orgJson, _ := json.MarshalIndent(org, "", "  ")
-		fmt.Printf("Organization:\n%s\n", string(orgJson))
+
+		printer.PrintJson(org)
 		return nil
 	},
 }
@@ -153,27 +151,30 @@ var listOrgCmd = &cobra.Command{
 	Example: `workos organization list --domain foo-corp.com --limit 10 --before cursor --order desc
 workos organization list --domain foo-corp.com --after cursor --order asc`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		after, _ := cmd.Flags().GetString(list.FlagAfter)
-		before, _ := cmd.Flags().GetString(list.FlagBefore)
-		domain, _ := cmd.Flags().GetString(FlagDomain)
-		limit, _ := cmd.Flags().GetInt(list.FlagLimit)
-		order, _ := cmd.Flags().GetString(list.FlagOrder)
+		after, err := cmd.Flags().GetString(list.FlagAfter)
+		if err != nil {
+			return errors.New("invalid after flag")
+		}
+		before, err := cmd.Flags().GetString(list.FlagBefore)
+		if err != nil {
+			return errors.New("invalid before flag")
+		}
+		domain, err := cmd.Flags().GetString(FlagDomain)
+		if err != nil {
+			return errors.New("invalid domain flag")
+		}
+		limit, err := cmd.Flags().GetInt(list.FlagLimit)
+		if err != nil {
+			return errors.New("invalid limit flag")
+		}
+		order, err := cmd.Flags().GetString(list.FlagOrder)
+		if err != nil {
+			return errors.New("invalid order flag")
+		}
 
 		var domains []string
 		if domain != "" {
 			domains = strings.Fields(domain)
-		}
-
-		var orgOrder organizations.Order
-		switch order {
-		case "asc":
-			orgOrder = organizations.Asc
-		case "desc":
-			orgOrder = organizations.Desc
-		default:
-			if order != "" {
-				return fmt.Errorf("invalid order value: must be 'asc' or 'desc'")
-			}
 		}
 
 		orgs, err := organizations.ListOrganizations(
@@ -183,14 +184,14 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 				Limit:   limit,
 				Before:  before,
 				After:   after,
-				Order:   orgOrder,
+				Order:   organizations.Order(order),
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error listing organizations: %v", err)
+			return errors.Wrap(err, "error listing organizations")
 		}
 
-		tbl := printer.NewTable().Headers(
+		tbl := printer.NewTable(120).Headers(
 			printer.TableHeader("ID"),
 			printer.TableHeader("Name"),
 			printer.TableHeader("Domains"),
@@ -208,9 +209,9 @@ workos organization list --domain foo-corp.com --after cursor --order asc`,
 			)
 		}
 
-		fmt.Println(tbl.Render())
-		fmt.Printf("before: %s\n", orgs.ListMetadata.Before)
-		fmt.Printf("after: %s\n", orgs.ListMetadata.After)
+		printer.PrintMsg(tbl.Render())
+		printer.PrintMsg(fmt.Sprintf("Before: %s", orgs.ListMetadata.Before))
+		printer.PrintMsg(fmt.Sprintf("After: %s", orgs.ListMetadata.After))
 		return nil
 	},
 }
@@ -231,9 +232,9 @@ var deleteOrgCmd = &cobra.Command{
 		)
 
 		if err != nil {
-			return fmt.Errorf("error deleting organization: %v", err)
+			return errors.Wrap(err, "error deleting organization")
 		}
-		fmt.Printf("Deleted organization %s", organizationId)
+		printer.PrintMsg(fmt.Sprintf("Deleted organization %s", organizationId))
 		return nil
 	},
 }

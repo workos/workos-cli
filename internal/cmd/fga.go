@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"os"
 	"strconv"
@@ -85,27 +86,21 @@ var listObjectTypesCmd = &cobra.Command{
 			Limit: 100,
 		})
 		if err != nil {
-			return fmt.Errorf("error listing object types: %v", err)
+			return errors.New(fmt.Sprintf("error listing object types: %v", err))
 		}
 
-		tbl := printer.NewTable().Headers(
-			printer.TableHeader("Type"),
-			printer.TableHeader("Definition"),
+		tbl := printer.NewTable(80).Headers(
+			printer.TableHeader("Object Type"),
 		)
 		for _, objectType := range objectTypes.Data {
-			definitionString, err := json.MarshalIndent(objectType, "", "    ")
-			if err != nil {
-				return fmt.Errorf("error listing object types: %v", err)
-			}
 			tbl.Row(
 				objectType.Type,
-				string(definitionString),
 			)
 		}
 
-		fmt.Println(tbl.Render())
-		fmt.Printf("before: %s\n", objectTypes.ListMetadata.Before)
-		fmt.Printf("after: %s\n", objectTypes.ListMetadata.After)
+		printer.PrintMsg(tbl.Render())
+		printer.PrintMsg(fmt.Sprintf("Before: %s", objectTypes.ListMetadata.Before))
+		printer.PrintMsg(fmt.Sprintf("After: %s", objectTypes.ListMetadata.After))
 		return nil
 	},
 }
@@ -148,7 +143,7 @@ var applyObjectTypesCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("object types updated")
+		printer.PrintMsg("Object types updated")
 		return nil
 	},
 }
@@ -162,13 +157,13 @@ var assignRelationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return fmt.Errorf("invalid subject: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid subject: %s", args[0]))
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
 		objectType, objectId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return fmt.Errorf("invalid object: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
 		}
 
 		var policy string
@@ -192,10 +187,11 @@ var assignRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error assigning relation: %v", err)
+			return errors.New(fmt.Sprintf("error assigning relation: %v", err))
 		}
 
-		fmt.Printf("assigned %s %s %s\nWarrant-Token: %s\n", args[0], args[1], args[2], res.WarrantToken)
+		printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
+		printer.PrintMsg(fmt.Sprintf("Warrant-Token: %s", res.WarrantToken))
 		return nil
 	},
 }
@@ -209,13 +205,13 @@ var removeRelationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return fmt.Errorf("invalid subject: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid subject: %s", args[0]))
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
 		objectType, objectId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return fmt.Errorf("invalid object: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
 		}
 
 		res, err := fga.WriteWarrant(
@@ -233,10 +229,11 @@ var removeRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error removing relation: %v", err)
+			return errors.New(fmt.Sprintf("error removing relation: %v", err))
 		}
 
-		fmt.Printf("removed %s %s %s\nwarrant_token: %s\n", args[0], args[1], args[2], res.WarrantToken)
+		printer.PrintMsg(fmt.Sprintf("Removed %s %s %s", args[0], args[1], args[2]))
+		printer.PrintMsg(fmt.Sprintf("Warrant-Token: %s", res.WarrantToken))
 		return nil
 	},
 }
@@ -256,7 +253,7 @@ var createObjectCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		objectType, objectId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return fmt.Errorf("invalid object: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
 		}
 
 		var meta map[string]interface{}
@@ -264,7 +261,7 @@ var createObjectCmd = &cobra.Command{
 		if len(args) == 2 {
 			err = json.Unmarshal([]byte(args[1]), &meta)
 			if err != nil {
-				return fmt.Errorf("invalid object meta: %s", args[1])
+				return errors.New(fmt.Sprintf("invalid object meta: %s", args[1]))
 			}
 		}
 
@@ -274,13 +271,13 @@ var createObjectCmd = &cobra.Command{
 			Meta:       meta,
 		})
 		if err != nil {
-			return fmt.Errorf("error creating object: %v", err)
+			return errors.New(fmt.Sprintf("error creating object: %v", err))
 		}
 
 		if len(createdObject.Meta) > 0 {
-			fmt.Printf("created object %s:%s (%v)\n", createdObject.ObjectType, createdObject.ObjectId, createdObject.Meta)
+			printer.PrintMsg(fmt.Sprintf("Created object %s:%s (%v)", createdObject.ObjectType, createdObject.ObjectId, createdObject.Meta))
 		} else {
-			fmt.Printf("created object %s:%s\n", createdObject.ObjectType, createdObject.ObjectId)
+			printer.PrintMsg(fmt.Sprintf("Created object %s:%s", createdObject.ObjectType, createdObject.ObjectId))
 		}
 
 		return nil
@@ -296,27 +293,27 @@ var listObjectsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		objectType, err := cmd.Flags().GetString("type")
 		if err != nil {
-			return fmt.Errorf("invalid type flag")
+			return errors.New(fmt.Sprintf("invalid type flag"))
 		}
 		search, err := cmd.Flags().GetString("search")
 		if err != nil {
-			return fmt.Errorf("invalid search flag")
+			return errors.New(fmt.Sprintf("invalid search flag"))
 		}
 		limit, err := cmd.Flags().GetInt("limit")
 		if err != nil {
-			return fmt.Errorf("invalid limit flag")
+			return errors.New(fmt.Sprintf("invalid limit flag"))
 		}
 		before, err := cmd.Flags().GetString("before")
 		if err != nil {
-			return fmt.Errorf("invalid before flag")
+			return errors.New(fmt.Sprintf("invalid before flag"))
 		}
 		after, err := cmd.Flags().GetString("after")
 		if err != nil {
-			return fmt.Errorf("invalid after flag")
+			return errors.New(fmt.Sprintf("invalid after flag"))
 		}
 		order, err := cmd.Flags().GetString("order")
 		if err != nil {
-			return fmt.Errorf("invalid order flag")
+			return errors.New(fmt.Sprintf("invalid order flag"))
 		}
 		var orderFilter fga.Order
 		if order != "" {
@@ -336,10 +333,10 @@ var listObjectsCmd = &cobra.Command{
 			Order:      orderFilter,
 		})
 		if err != nil {
-			return fmt.Errorf("error listing objects: %v", err)
+			return errors.New(fmt.Sprintf("error listing objects: %v", err))
 		}
 
-		tbl := printer.NewTable().Headers(
+		tbl := printer.NewTable(120).Headers(
 			printer.TableHeader("Object Type"),
 			printer.TableHeader("Object ID"),
 			printer.TableHeader("Meta"),
@@ -347,7 +344,7 @@ var listObjectsCmd = &cobra.Command{
 		for _, object := range objects.Data {
 			metaString, err := json.MarshalIndent(object.Meta, "", "    ")
 			if err != nil {
-				return fmt.Errorf("error listing objects: %v", err)
+				return errors.New(fmt.Sprintf("error listing objects: %v", err))
 			}
 			tbl.Row(
 				object.ObjectType,
@@ -356,9 +353,9 @@ var listObjectsCmd = &cobra.Command{
 			)
 		}
 
-		fmt.Println(tbl.Render())
-		fmt.Printf("before: %s\n", objects.ListMetadata.Before)
-		fmt.Printf("after: %s\n", objects.ListMetadata.After)
+		printer.PrintMsg(tbl.Render())
+		printer.PrintMsg(fmt.Sprintf("Before: %s", objects.ListMetadata.Before))
+		printer.PrintMsg(fmt.Sprintf("After: %s", objects.ListMetadata.After))
 		return nil
 	},
 }
@@ -372,13 +369,13 @@ var updateObjectCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		objectType, objectId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return fmt.Errorf("invalid object: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
 		}
 
 		var meta map[string]interface{}
 		err := json.Unmarshal([]byte(args[1]), &meta)
 		if err != nil {
-			return fmt.Errorf("invalid meta: %s", args[1])
+			return errors.New(fmt.Sprintf("invalid meta: %s", args[1]))
 		}
 
 		updatedObject, err := fga.UpdateObject(context.Background(), fga.UpdateObjectOpts{
@@ -387,10 +384,10 @@ var updateObjectCmd = &cobra.Command{
 			Meta:       meta,
 		})
 		if err != nil {
-			return fmt.Errorf("error updating object: %v", err)
+			return errors.New(fmt.Sprintf("error updating object: %v", err))
 		}
 
-		fmt.Printf("updated object %s:%s\n", updatedObject.ObjectType, updatedObject.ObjectId)
+		printer.PrintMsg(fmt.Sprintf("Updated object %s:%s", updatedObject.ObjectType, updatedObject.ObjectId))
 		return nil
 	},
 }
@@ -404,7 +401,7 @@ var deleteObjectCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		objectType, objectId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return fmt.Errorf("invalid object: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
 		}
 
 		err := fga.DeleteObject(context.Background(), fga.DeleteObjectOpts{
@@ -412,10 +409,10 @@ var deleteObjectCmd = &cobra.Command{
 			ObjectId:   objectId,
 		})
 		if err != nil {
-			return fmt.Errorf("error deleting object: %v", err)
+			return errors.New(fmt.Sprintf("error deleting object: %v", err))
 		}
 
-		fmt.Printf("deleted object %s\n", args[0])
+		printer.PrintMsg(fmt.Sprintf("Deleted object %s", args[0]))
 		return nil
 	},
 }
@@ -429,25 +426,31 @@ var checkRelationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return fmt.Errorf("invalid subject: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid subject: %s", args[0]))
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
 		objectType, objectId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return fmt.Errorf("invalid object: %s", args[0])
+			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
 		}
 
 		var policyContext map[string]interface{}
 		if len(args) > 3 {
 			err := json.Unmarshal([]byte(args[3]), &policyContext)
 			if err != nil {
-				return fmt.Errorf("invalid context: %s", args[3])
+				return errors.New(fmt.Sprintf("invalid context: %s", args[3]))
 			}
 		}
 
-		warrantToken, _ := cmd.Flags().GetString("warrantToken")
-		debug, _ := cmd.Flags().GetBool("debug")
+		warrantToken, err := cmd.Flags().GetString("warrantToken")
+		if err != nil {
+			return errors.Wrap(err, "invalid warrantToken flag")
+		}
+		debug, err := cmd.Flags().GetBool("debug")
+		if err != nil {
+			return errors.Wrap(err, "invalid debug flag")
+		}
 
 		warrantCheck := fga.WarrantCheck{
 			ObjectType: objectType,
@@ -469,31 +472,34 @@ var checkRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error evaluating check: %v", err)
+			return errors.New(fmt.Sprintf("error evaluating check: %v", err))
 		}
 
 		warrantCheckString, err := warrantCheckAsString(warrantCheck)
 		if err != nil {
-			return fmt.Errorf("invalid check: %v", err)
+			return errors.New(fmt.Sprintf("invalid check: %v", err))
 		}
 
-		assert, _ := cmd.Flags().GetString("assert")
+		assert, err := cmd.Flags().GetString("assert")
+		if err != nil {
+			return errors.Wrap(err, "invalid assert flag")
+		}
 		if assert != "" {
 			assertBool, err := strconv.ParseBool(assert)
 			if err != nil {
-				return fmt.Errorf("invalid assertion: %s", assert)
+				return errors.New(fmt.Sprintf("invalid assertion: %s", assert))
 			}
 
 			if assertBool == result.Authorized() {
-				fmt.Printf("%s %s\n", printer.GreenText(printer.Checkmark, fmt.Sprintf("assert %t", assertBool)), warrantCheckString)
+				printer.PrintMsg(fmt.Sprintf("%s %s", printer.GreenText(printer.Checkmark, fmt.Sprintf("assert %t", assertBool)), warrantCheckString))
 			} else {
-				fmt.Printf("%s %s\n", printer.RedText(printer.Cross, fmt.Sprintf("assert %t", assertBool)), warrantCheckString)
+				printer.PrintMsg(fmt.Sprintf("%s %s", printer.RedText(printer.Cross, fmt.Sprintf("assert %t", assertBool)), warrantCheckString))
 				os.Exit(1)
 			}
 		} else if result.Authorized() {
-			fmt.Printf("%s %s\n", printer.GreenText(printer.Checkmark, "true"), warrantCheckString)
+			printer.PrintMsg(fmt.Sprintf("%s %s", printer.GreenText(printer.Checkmark, "true"), warrantCheckString))
 		} else {
-			fmt.Printf("%s %s\n", printer.RedText(printer.Cross, "false"), warrantCheckString)
+			printer.PrintMsg(fmt.Sprintf("%s %s", printer.RedText(printer.Cross, "false"), warrantCheckString))
 		}
 
 		return nil
@@ -507,16 +513,31 @@ var queryCmd = &cobra.Command{
 	Example: "workos fga query select document where user:john is owner",
 	Args:    cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		after, _ := cmd.Flags().GetString("after")
-		before, _ := cmd.Flags().GetString("before")
-		limit, _ := cmd.Flags().GetInt("limit")
-		order, _ := cmd.Flags().GetString("order")
-		warrantToken, _ := cmd.Flags().GetString("warrantToken")
+		after, err := cmd.Flags().GetString("after")
+		if err != nil {
+			return errors.Wrap(err, "invalid after flag")
+		}
+		before, err := cmd.Flags().GetString("before")
+		if err != nil {
+			return errors.Wrap(err, "invalid before flag")
+		}
+		limit, err := cmd.Flags().GetInt("limit")
+		if err != nil {
+			return errors.Wrap(err, "invalid limit flag")
+		}
+		order, err := cmd.Flags().GetString("order")
+		if err != nil {
+			return errors.Wrap(err, "invalid order flag")
+		}
+		warrantToken, err := cmd.Flags().GetString("warrantToken")
+		if err != nil {
+			return errors.Wrap(err, "invalid warrantToken flag")
+		}
 		var policyContext map[string]interface{}
 		if len(args) > 1 {
 			err := json.Unmarshal([]byte(args[3]), &policyContext)
 			if err != nil {
-				return fmt.Errorf("invalid context: %s", args[3])
+				return errors.New(fmt.Sprintf("invalid context: %s", args[3]))
 			}
 		}
 
@@ -530,10 +551,10 @@ var queryCmd = &cobra.Command{
 			WarrantToken: warrantToken,
 		})
 		if err != nil {
-			return fmt.Errorf("error performing query: %v", err)
+			return errors.New(fmt.Sprintf("error performing query: %v", err))
 		}
 
-		tbl := printer.NewTable().Headers(
+		tbl := printer.NewTable(120).Headers(
 			printer.TableHeader("Object Type"),
 			printer.TableHeader("Object ID"),
 			printer.TableHeader("Relation"),
@@ -543,7 +564,7 @@ var queryCmd = &cobra.Command{
 		for _, queryResult := range result.Data {
 			metaString, err := json.MarshalIndent(queryResult.Meta, "", "    ")
 			if err != nil {
-				return fmt.Errorf("error listing objects: %v", err)
+				return errors.New(fmt.Sprintf("error listing objects: %v", err))
 			}
 			tbl.Row(
 				queryResult.ObjectType,
@@ -554,9 +575,9 @@ var queryCmd = &cobra.Command{
 			)
 		}
 
-		fmt.Println(tbl.Render())
-		fmt.Printf("before: %s\n", result.ListMetadata.Before)
-		fmt.Printf("after: %s\n", result.ListMetadata.After)
+		printer.PrintMsg(tbl.Render())
+		printer.PrintMsg(fmt.Sprintf("Before: %s", result.ListMetadata.Before))
+		printer.PrintMsg(fmt.Sprintf("After: %s", result.ListMetadata.After))
 		return nil
 	},
 }
