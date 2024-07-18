@@ -5,29 +5,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/printer"
 	"github.com/workos/workos-go/v4/pkg/fga"
 )
 
-var objectTypesFile string
+var resourceTypesFile string
 
 func init() {
-	// object-types
-	listObjectTypesCmd.Flags().Int("limit", 10, "limit the number of results returned")
-	listObjectTypesCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
-	listObjectTypesCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
-	listObjectTypesCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
-	objectTypeCmd.AddCommand(listObjectTypesCmd)
-	applyObjectTypesCmd.Flags().StringVarP(&objectTypesFile, "file", "f", "", "file containing object type definitions")
-	objectTypeCmd.AddCommand(applyObjectTypesCmd)
-	fgaCmd.AddCommand(objectTypeCmd)
+	// resource-types
+	listResourceTypesCmd.Flags().Int("limit", 10, "limit the number of results returned")
+	listResourceTypesCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
+	listResourceTypesCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
+	listResourceTypesCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
+	resourceTypeCmd.AddCommand(listResourceTypesCmd)
+	applyResourceTypesCmd.Flags().StringVarP(&resourceTypesFile, "file", "f", "", "file containing resource type definitions")
+	resourceTypeCmd.AddCommand(applyResourceTypesCmd)
+	fgaCmd.AddCommand(resourceTypeCmd)
 
 	// warrants
 	fgaCmd.AddCommand(assignRelationCmd)
@@ -39,18 +40,18 @@ func init() {
 	checkRelationCmd.Flags().BoolP("debug", "d", false, "run check in debug mode")
 	fgaCmd.AddCommand(checkRelationCmd)
 
-	// objects
-	objectCmd.AddCommand(createObjectCmd)
-	listObjectsCmd.Flags().String("type", "", "object type to filter results by")
-	listObjectsCmd.Flags().String("search", "", "search term to filter a list of results by")
-	listObjectsCmd.Flags().Int("limit", 10, "limit the number of results returned")
-	listObjectsCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
-	listObjectsCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
-	listObjectsCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
-	objectCmd.AddCommand(listObjectsCmd)
-	objectCmd.AddCommand(updateObjectCmd)
-	objectCmd.AddCommand(deleteObjectCmd)
-	fgaCmd.AddCommand(objectCmd)
+	// resources
+	resourceCmd.AddCommand(createResourceCmd)
+	listResourcesCmd.Flags().String("type", "", "resource type to filter results by")
+	listResourcesCmd.Flags().String("search", "", "search term to filter a list of results by")
+	listResourcesCmd.Flags().Int("limit", 10, "limit the number of results returned")
+	listResourcesCmd.Flags().String("before", "", "cursor indicating results that occur before a specific result")
+	listResourcesCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
+	listResourcesCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
+	resourceCmd.AddCommand(listResourcesCmd)
+	resourceCmd.AddCommand(updateResourceCmd)
+	resourceCmd.AddCommand(deleteResourceCmd)
+	fgaCmd.AddCommand(resourceCmd)
 
 	// query
 	queryCmd.Flags().StringP("warrantToken", "w", "", "warrant token to use for query")
@@ -65,57 +66,57 @@ func init() {
 
 var fgaCmd = &cobra.Command{
 	Use:   "fga",
-	Short: "Manage FGA resources (object types, warrants, and objects).",
-	Long:  "Manage FGA-specific resources like object types, warrants, and objects and perform check and query operations to validate your FGA model.",
+	Short: "Manage FGA resources (resource types, warrants, and resources).",
+	Long:  "Manage FGA-specific resources like resource types, warrants, and resources and perform check and query operations to validate your FGA model.",
 }
 
-var objectTypeCmd = &cobra.Command{
-	Use:   "objecttype",
-	Short: "Manage your object types",
-	Long:  "List and apply object types. Object types are used to define the types of objects in your system and the relations between them.",
+var resourceTypeCmd = &cobra.Command{
+	Use:   "resourcetype",
+	Short: "Manage your resource types",
+	Long:  "List and apply resource types. Resource types are used to define the types of resources in your system and the relations between them.",
 }
 
-var listObjectTypesCmd = &cobra.Command{
+var listResourceTypesCmd = &cobra.Command{
 	Use:     "list",
-	Short:   "List object types",
-	Long:    "List object types, optionally providing common flags to filter and paginate the results.",
-	Example: "workos fga objecttype list --limit=5",
+	Short:   "List resource types",
+	Long:    "List resource types, optionally providing common flags to filter and paginate the results.",
+	Example: "workos fga resourcetype list --limit=5",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		objectTypes, err := fga.ListObjectTypes(context.Background(), fga.ListObjectTypesOpts{
+		resourceTypes, err := fga.ListResourceTypes(context.Background(), fga.ListResourceTypesOpts{
 			Limit: 100,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error listing object types: %v", err))
+			return errors.New(fmt.Sprintf("error listing resource types: %v", err))
 		}
 
 		tbl := printer.NewTable(80).Headers(
-			printer.TableHeader("Object Type"),
+			printer.TableHeader("Resource Type"),
 		)
-		for _, objectType := range objectTypes.Data {
+		for _, resourceType := range resourceTypes.Data {
 			tbl.Row(
-				objectType.Type,
+				resourceType.Type,
 			)
 		}
 
 		printer.PrintMsg(tbl.Render())
-		printer.PrintMsg(fmt.Sprintf("Before: %s", objectTypes.ListMetadata.Before))
-		printer.PrintMsg(fmt.Sprintf("After: %s", objectTypes.ListMetadata.After))
+		printer.PrintMsg(fmt.Sprintf("Before: %s", resourceTypes.ListMetadata.Before))
+		printer.PrintMsg(fmt.Sprintf("After: %s", resourceTypes.ListMetadata.After))
 		return nil
 	},
 }
 
-var applyObjectTypesCmd = &cobra.Command{
+var applyResourceTypesCmd = &cobra.Command{
 	Use:     "apply",
-	Short:   "Apply a set of object types",
-	Long:    "Apply a set of object types from a specified file. This command will create any object types present in the file and delete any object types that are not.",
-	Example: "workos fga objecttype apply -f object-types.json",
+	Short:   "Apply a set of resource types",
+	Long:    "Apply a set of resource types from a specified file. This command will create any resource types present in the file and delete any resource types that are not.",
+	Example: "workos fga resourcetype apply -f resource-types.json",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var bytes []byte
 		var err error
-		if objectTypesFile != "" {
-			jsonFile, err := os.Open(objectTypesFile)
+		if resourceTypesFile != "" {
+			jsonFile, err := os.Open(resourceTypesFile)
 			if err != nil {
 				return err
 			}
@@ -132,26 +133,26 @@ var applyObjectTypesCmd = &cobra.Command{
 			}
 		}
 
-		var objectTypes []fga.UpdateObjectTypeOpts
-		err = json.Unmarshal(bytes, &objectTypes)
+		var resourceTypes []fga.UpdateResourceTypeOpts
+		err = json.Unmarshal(bytes, &resourceTypes)
 		if err != nil {
 			return err
 		}
 
-		_, err = fga.BatchUpdateObjectTypes(context.Background(), objectTypes)
+		_, err = fga.BatchUpdateResourceTypes(context.Background(), resourceTypes)
 		if err != nil {
 			return err
 		}
 
-		printer.PrintMsg("Object types updated")
+		printer.PrintMsg("Resource types updated")
 		return nil
 	},
 }
 
 var assignRelationCmd = &cobra.Command{
-	Use:     "assign <subject> <relation> <object> [policy]",
+	Use:     "assign <subject> <relation> <resource> [policy]",
 	Short:   "Assign a relation",
-	Long:    "Assign a relation between a given subject and a given object, optionally specifying a policy that dictates when the relation applies.",
+	Long:    "Assign a relation between a given subject and a given resource, optionally specifying a policy that dictates when the relation applies.",
 	Example: "workos fga assign user:john owner document:xyz",
 	Args:    cobra.RangeArgs(3, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -161,9 +162,9 @@ var assignRelationCmd = &cobra.Command{
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
-		objectType, objectId, valid := strings.Cut(args[2], ":")
+		resourceType, resourceId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
+			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
 		}
 
 		var policy string
@@ -174,14 +175,14 @@ var assignRelationCmd = &cobra.Command{
 		res, err := fga.WriteWarrant(
 			context.Background(),
 			fga.WriteWarrantOpts{
-				Op:         "create",
-				ObjectType: objectType,
-				ObjectId:   objectId,
-				Relation:   relation,
+				Op:           "create",
+				ResourceType: resourceType,
+				ResourceId:   resourceId,
+				Relation:     relation,
 				Subject: fga.Subject{
-					ObjectType: subjectType,
-					ObjectId:   subjectId,
-					Relation:   subjectRelation,
+					ResourceType: subjectType,
+					ResourceId:   subjectId,
+					Relation:     subjectRelation,
 				},
 				Policy: policy,
 			},
@@ -197,9 +198,9 @@ var assignRelationCmd = &cobra.Command{
 }
 
 var removeRelationCmd = &cobra.Command{
-	Use:     "remove <subject> <relation> <object>",
+	Use:     "remove <subject> <relation> <resource>",
 	Short:   "Remove a relation",
-	Long:    "Remove a relation between a given subject and a given object.",
+	Long:    "Remove a relation between a given subject and a given resource.",
 	Example: "workos fga remove user:john owner document:xyz",
 	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -209,22 +210,22 @@ var removeRelationCmd = &cobra.Command{
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
-		objectType, objectId, valid := strings.Cut(args[2], ":")
+		resourceType, resourceId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
+			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
 		}
 
 		res, err := fga.WriteWarrant(
 			context.Background(),
 			fga.WriteWarrantOpts{
-				Op:         "delete",
-				ObjectType: objectType,
-				ObjectId:   objectId,
-				Relation:   relation,
+				Op:           "delete",
+				ResourceType: resourceType,
+				ResourceId:   resourceId,
+				Relation:     relation,
 				Subject: fga.Subject{
-					ObjectType: subjectType,
-					ObjectId:   subjectId,
-					Relation:   subjectRelation,
+					ResourceType: subjectType,
+					ResourceId:   subjectId,
+					Relation:     subjectRelation,
 				},
 			},
 		)
@@ -238,22 +239,22 @@ var removeRelationCmd = &cobra.Command{
 	},
 }
 
-var objectCmd = &cobra.Command{
-	Use:   "object",
-	Short: "Manage your objects",
-	Long:  "Create, update, read, list and delete objects.",
+var resourceCmd = &cobra.Command{
+	Use:   "resource",
+	Short: "Manage your resources",
+	Long:  "Create, update, read, list and delete resources.",
 }
 
-var createObjectCmd = &cobra.Command{
-	Use:     "create <object> [meta]",
-	Short:   "Create a new object",
-	Long:    "Create a new object of a given type, optionally providing an identifier for the object and/or any metadata to attach to the object.",
-	Example: `workos fga object create user:john '{"email":"john.doe@workos.com"}'`,
+var createResourceCmd = &cobra.Command{
+	Use:     "create <resource> [meta]",
+	Short:   "Create a new resource",
+	Long:    "Create a new resource of a given type, optionally providing an identifier for the resource and/or any metadata to attach to the resource.",
+	Example: `workos fga resource create user:john '{"email":"john.doe@workos.com"}'`,
 	Args:    cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		objectType, objectId, valid := strings.Cut(args[0], ":")
+		resourceType, resourceId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
+			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
 		}
 
 		var meta map[string]interface{}
@@ -261,37 +262,37 @@ var createObjectCmd = &cobra.Command{
 		if len(args) == 2 {
 			err = json.Unmarshal([]byte(args[1]), &meta)
 			if err != nil {
-				return errors.New(fmt.Sprintf("invalid object meta: %s", args[1]))
+				return errors.New(fmt.Sprintf("invalid resource meta: %s", args[1]))
 			}
 		}
 
-		createdObject, err := fga.CreateObject(context.Background(), fga.CreateObjectOpts{
-			ObjectType: objectType,
-			ObjectId:   objectId,
-			Meta:       meta,
+		createdResource, err := fga.CreateResource(context.Background(), fga.CreateResourceOpts{
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
+			Meta:         meta,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error creating object: %v", err))
+			return errors.New(fmt.Sprintf("error creating resource: %v", err))
 		}
 
-		if len(createdObject.Meta) > 0 {
-			printer.PrintMsg(fmt.Sprintf("Created object %s:%s (%v)", createdObject.ObjectType, createdObject.ObjectId, createdObject.Meta))
+		if len(createdResource.Meta) > 0 {
+			printer.PrintMsg(fmt.Sprintf("Created resource %s:%s (%v)", createdResource.ResourceType, createdResource.ResourceId, createdResource.Meta))
 		} else {
-			printer.PrintMsg(fmt.Sprintf("Created object %s:%s", createdObject.ObjectType, createdObject.ObjectId))
+			printer.PrintMsg(fmt.Sprintf("Created resource %s:%s", createdResource.ResourceType, createdResource.ResourceId))
 		}
 
 		return nil
 	},
 }
 
-var listObjectsCmd = &cobra.Command{
+var listResourcesCmd = &cobra.Command{
 	Use:     "list",
-	Short:   "List objects",
-	Long:    "List objects, optionally specifying the '--type' flag to filter to objects of a specific type or providing common flags to filter and paginate the results.",
-	Example: "workos fga object list --type=user --limit=15",
+	Short:   "List resources",
+	Long:    "List resources, optionally specifying the '--type' flag to filter to resources of a specific type or providing common flags to filter and paginate the results.",
+	Example: "workos fga resource list --type=user --limit=15",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		objectType, err := cmd.Flags().GetString("type")
+		resourceType, err := cmd.Flags().GetString("type")
 		if err != nil {
 			return errors.New(fmt.Sprintf("invalid type flag"))
 		}
@@ -324,52 +325,52 @@ var listObjectsCmd = &cobra.Command{
 			}
 		}
 
-		objects, err := fga.ListObjects(context.Background(), fga.ListObjectsOpts{
-			ObjectType: objectType,
-			Search:     search,
-			Limit:      limit,
-			Before:     before,
-			After:      after,
-			Order:      orderFilter,
+		resources, err := fga.ListResources(context.Background(), fga.ListResourcesOpts{
+			ResourceType: resourceType,
+			Search:       search,
+			Limit:        limit,
+			Before:       before,
+			After:        after,
+			Order:        orderFilter,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error listing objects: %v", err))
+			return errors.New(fmt.Sprintf("error listing resources: %v", err))
 		}
 
 		tbl := printer.NewTable(120).Headers(
-			printer.TableHeader("Object Type"),
-			printer.TableHeader("Object ID"),
+			printer.TableHeader("Resource Type"),
+			printer.TableHeader("Resource ID"),
 			printer.TableHeader("Meta"),
 		)
-		for _, object := range objects.Data {
-			metaString, err := json.MarshalIndent(object.Meta, "", "    ")
+		for _, resource := range resources.Data {
+			metaString, err := json.MarshalIndent(resource.Meta, "", "    ")
 			if err != nil {
-				return errors.New(fmt.Sprintf("error listing objects: %v", err))
+				return errors.New(fmt.Sprintf("error listing resources: %v", err))
 			}
 			tbl.Row(
-				object.ObjectType,
-				object.ObjectId,
+				resource.ResourceType,
+				resource.ResourceId,
 				string(metaString),
 			)
 		}
 
 		printer.PrintMsg(tbl.Render())
-		printer.PrintMsg(fmt.Sprintf("Before: %s", objects.ListMetadata.Before))
-		printer.PrintMsg(fmt.Sprintf("After: %s", objects.ListMetadata.After))
+		printer.PrintMsg(fmt.Sprintf("Before: %s", resources.ListMetadata.Before))
+		printer.PrintMsg(fmt.Sprintf("After: %s", resources.ListMetadata.After))
 		return nil
 	},
 }
 
-var updateObjectCmd = &cobra.Command{
-	Use:     "update <object> <meta>",
-	Short:   "Update an object",
-	Long:    "Update an object, providing metadata to attach to it.",
-	Example: `workos fga object update user:john '{"email":"john.doe@workos.com"}'`,
+var updateResourceCmd = &cobra.Command{
+	Use:     "update <resource> <meta>",
+	Short:   "Update a resource",
+	Long:    "Update a resource, providing metadata to attach to it.",
+	Example: `workos fga resource update user:john '{"email":"john.doe@workos.com"}'`,
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		objectType, objectId, valid := strings.Cut(args[0], ":")
+		resourceType, resourceId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
+			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
 		}
 
 		var meta map[string]interface{}
@@ -378,49 +379,49 @@ var updateObjectCmd = &cobra.Command{
 			return errors.New(fmt.Sprintf("invalid meta: %s", args[1]))
 		}
 
-		updatedObject, err := fga.UpdateObject(context.Background(), fga.UpdateObjectOpts{
-			ObjectType: objectType,
-			ObjectId:   objectId,
-			Meta:       meta,
+		updatedResource, err := fga.UpdateResource(context.Background(), fga.UpdateResourceOpts{
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
+			Meta:         meta,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error updating object: %v", err))
+			return errors.New(fmt.Sprintf("error updating resource: %v", err))
 		}
 
-		printer.PrintMsg(fmt.Sprintf("Updated object %s:%s", updatedObject.ObjectType, updatedObject.ObjectId))
+		printer.PrintMsg(fmt.Sprintf("Updated resource %s:%s", updatedResource.ResourceType, updatedResource.ResourceId))
 		return nil
 	},
 }
 
-var deleteObjectCmd = &cobra.Command{
-	Use:     "delete <object>",
-	Short:   "Delete an object",
-	Long:    "Delete a given object. This will delete any warrants associated with the object.",
-	Example: `workos fga object delete user:john`,
+var deleteResourceCmd = &cobra.Command{
+	Use:     "delete <resource>",
+	Short:   "Delete a resource",
+	Long:    "Delete a given resource. This will delete any warrants associated with the resource.",
+	Example: `workos fga resource delete user:john`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		objectType, objectId, valid := strings.Cut(args[0], ":")
+		resourceType, resourceId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
+			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
 		}
 
-		err := fga.DeleteObject(context.Background(), fga.DeleteObjectOpts{
-			ObjectType: objectType,
-			ObjectId:   objectId,
+		err := fga.DeleteResource(context.Background(), fga.DeleteResourceOpts{
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error deleting object: %v", err))
+			return errors.New(fmt.Sprintf("error deleting resource: %v", err))
 		}
 
-		printer.PrintMsg(fmt.Sprintf("Deleted object %s", args[0]))
+		printer.PrintMsg(fmt.Sprintf("Deleted resource %s", args[0]))
 		return nil
 	},
 }
 
 var checkRelationCmd = &cobra.Command{
-	Use:     "check <subject> <relation> <object> [context]",
+	Use:     "check <subject> <relation> <resource> [context]",
 	Short:   "Check for a relation",
-	Long:    "Check if a given subject has the specified relation on a given object, optionally specifying context to use while evaluating the check.",
+	Long:    "Check if a given subject has the specified relation on a given resource, optionally specifying context to use while evaluating the check.",
 	Example: `workos fga check user:john owner document:xyz '{"organization": "acme"}'`,
 	Args:    cobra.RangeArgs(3, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -430,9 +431,9 @@ var checkRelationCmd = &cobra.Command{
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
-		objectType, objectId, valid := strings.Cut(args[2], ":")
+		resourceType, resourceId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid object: %s", args[0]))
+			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
 		}
 
 		var policyContext map[string]interface{}
@@ -453,20 +454,22 @@ var checkRelationCmd = &cobra.Command{
 		}
 
 		warrantCheck := fga.WarrantCheck{
-			ObjectType: objectType,
-			ObjectId:   objectId,
-			Relation:   relation,
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
+			Relation:     relation,
 			Subject: fga.Subject{
-				ObjectType: subjectType,
-				ObjectId:   subjectId,
-				Relation:   subjectRelation,
+				ResourceType: subjectType,
+				ResourceId:   subjectId,
+				Relation:     subjectRelation,
 			},
 			Context: policyContext,
 		}
 		result, err := fga.Check(
 			context.Background(),
 			fga.CheckOpts{
-				Warrant:      warrantCheck,
+				Checks: []fga.WarrantCheck{
+					warrantCheck,
+				},
 				WarrantToken: warrantToken,
 				Debug:        debug,
 			},
@@ -509,7 +512,7 @@ var checkRelationCmd = &cobra.Command{
 var queryCmd = &cobra.Command{
 	Use:     "query <query> [context]",
 	Short:   "Query for access rules",
-	Long:    "Run a query to see which objects a subject has access to or which subjects have access to an object, optionally specifying context to use while evaluating the query.",
+	Long:    "Run a query to see which resources a subject has access to or which subjects have access to a resource, optionally specifying context to use while evaluating the query.",
 	Example: "workos fga query select document where user:john is owner",
 	Args:    cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -555,8 +558,8 @@ var queryCmd = &cobra.Command{
 		}
 
 		tbl := printer.NewTable(120).Headers(
-			printer.TableHeader("Object Type"),
-			printer.TableHeader("Object ID"),
+			printer.TableHeader("Resource Type"),
+			printer.TableHeader("Resource ID"),
 			printer.TableHeader("Relation"),
 			printer.TableHeader("Implicit"),
 			printer.TableHeader("Meta"),
@@ -564,11 +567,11 @@ var queryCmd = &cobra.Command{
 		for _, queryResult := range result.Data {
 			metaString, err := json.MarshalIndent(queryResult.Meta, "", "    ")
 			if err != nil {
-				return errors.New(fmt.Sprintf("error listing objects: %v", err))
+				return errors.New(fmt.Sprintf("error listing resources: %v", err))
 			}
 			tbl.Row(
-				queryResult.ObjectType,
-				queryResult.ObjectId,
+				queryResult.ResourceType,
+				queryResult.ResourceId,
 				queryResult.Relation,
 				strconv.FormatBool(queryResult.IsImplicit),
 				string(metaString),
@@ -585,11 +588,11 @@ var queryCmd = &cobra.Command{
 func warrantCheckAsString(w fga.WarrantCheck) (string, error) {
 	s := fmt.Sprintf(
 		"%s:%s %s %s:%s",
-		w.Subject.ObjectType,
-		w.Subject.ObjectId,
+		w.Subject.ResourceType,
+		w.Subject.ResourceId,
 		w.Relation,
-		w.ObjectType,
-		w.ObjectId,
+		w.ResourceType,
+		w.ResourceId,
 	)
 	if len(w.Context) > 0 {
 		bytes, err := json.Marshal(w.Context)
