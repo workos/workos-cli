@@ -192,22 +192,34 @@ var switchEnvCmd = &cobra.Command{
 			i++
 		}
 
-		err := huh.NewSelect[string]().
-			Title("Select an environment.").
-			Options(environmentOptions...).
-			Value(&selectedEnvironment).
-			Run()
-		if err != nil {
-			return err
+		if len(args) > 0 {
+			selectedEnvironment = args[0]
+		} else {
+			err := huh.NewSelect[string]().
+				Title("Select an environment.").
+				Options(environmentOptions...).
+				Value(&selectedEnvironment).
+				Run()
+			if err != nil {
+				return err
+			}
 		}
 
 		config.ActiveEnvironment = selectedEnvironment
-		err = config.Write()
+		err := config.Write()
 		if err != nil {
 			return err
 		}
 
-		printer.PrintMsg(fmt.Sprintf("Switched to environment %s\n", selectedEnvironment))
+		activeEnv := config.Environments[config.ActiveEnvironment]
+		selectedEnvLabel := activeEnv.Name
+		if activeEnv.Type == EnvironmentTypeSandbox {
+			selectedEnvLabel = fmt.Sprintf("%s [%s]", selectedEnvLabel, EnvironmentTypeSandbox)
+		}
+		if activeEnv.Endpoint != "" {
+			selectedEnvLabel = fmt.Sprintf("%s [%s]", selectedEnvLabel, activeEnv.Endpoint)
+		}
+		printer.PrintMsg(fmt.Sprintf("Switched to environment %s\n", selectedEnvLabel))
 		return nil
 	},
 }
