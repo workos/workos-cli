@@ -11,9 +11,11 @@ import (
 
 var Checkmark = "✔"
 var Cross = "✖"
+var QuestionMark = "?"
 var GreenText = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Render
 var RedText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
-var TableHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
+var YellowText = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFCC00")).Render
+var TableHeader = YellowText
 
 func init() {
 	if runtime.GOOS == "windows" {

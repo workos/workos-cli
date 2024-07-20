@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/charmbracelet/lipgloss/list"
 	"io"
 	"os"
 	"strconv"
@@ -505,6 +506,13 @@ var checkRelationCmd = &cobra.Command{
 			printer.PrintMsg(fmt.Sprintf("%s %s", printer.RedText(printer.Cross, "false"), warrantCheckString))
 		}
 
+		if debug {
+			printer.PrintMsg(fmt.Sprintf("Response Time: %dms", result.DebugInfo.ProcessingTime/1000000)) // convert ns to ms
+			if result.DebugInfo.DecisionTree != nil {
+				printer.PrintMsg(buildDecisionTreeList(*result.DebugInfo.DecisionTree).String())
+			}
+		}
+
 		return nil
 	},
 }
@@ -603,4 +611,39 @@ func warrantCheckAsString(w fga.WarrantCheck) (string, error) {
 	}
 
 	return s, nil
+}
+
+func buildDecisionTreeList(node fga.DecisionTreeNode) *list.List {
+	checkText := fmt.Sprintf(
+		"%s:%s#%s@%s:%s",
+		node.Check.ResourceType,
+		node.Check.ResourceType,
+		node.Check.Relation,
+		node.Check.Subject.ResourceType,
+		node.Check.Subject.ResourceId,
+	)
+	if node.Check.Subject.Relation != "" {
+		checkText = fmt.Sprintf("%s#%s", checkText, node.Check.Subject.Relation)
+	}
+	if node.Policy != "" {
+		checkText = fmt.Sprintf("%s - %s", checkText, node.Policy)
+	}
+
+	// Prefix with check mark (matched), cross (not_matched), or question mark (eval_policy)
+	switch node.Decision {
+	case "matched":
+		checkText = fmt.Sprintf("%s %s", printer.GreenText(printer.Checkmark), checkText)
+	case "not_matched":
+		checkText = fmt.Sprintf("%s %s", printer.RedText(printer.Cross), checkText)
+	case "eval_policy":
+		checkText = fmt.Sprintf("%s %s", printer.YellowText(printer.QuestionMark), checkText)
+	}
+
+	checkText = fmt.Sprintf("%s (%dms)", checkText, node.ProcessingTime/1000000)
+	tree := list.New(checkText).Enumerator(list.Tree)
+	for _, child := range node.Children {
+		tree.Item(buildDecisionTreeList(child))
+	}
+
+	return tree
 }
