@@ -176,7 +176,7 @@ var assignRelationCmd = &cobra.Command{
 		res, err := fga.WriteWarrant(
 			context.Background(),
 			fga.WriteWarrantOpts{
-				Op:           "create",
+				Op:           fga.WarrantOpCreate,
 				ResourceType: resourceType,
 				ResourceId:   resourceId,
 				Relation:     relation,
@@ -219,7 +219,7 @@ var removeRelationCmd = &cobra.Command{
 		res, err := fga.WriteWarrant(
 			context.Background(),
 			fga.WriteWarrantOpts{
-				Op:           "delete",
+				Op:           fga.WarrantOpDelete,
 				ResourceType: resourceType,
 				ResourceId:   resourceId,
 				Relation:     relation,
@@ -501,9 +501,9 @@ var checkRelationCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		} else if result.Authorized() {
-			printer.PrintMsg(fmt.Sprintf("%s %s", printer.GreenText(printer.Checkmark, "true"), warrantCheckString))
+			printer.PrintMsg(fmt.Sprintf("%s %s", printer.GreenText(printer.Checkmark, fga.CheckResultAuthorized), warrantCheckString))
 		} else {
-			printer.PrintMsg(fmt.Sprintf("%s %s", printer.RedText(printer.Cross, "false"), warrantCheckString))
+			printer.PrintMsg(fmt.Sprintf("%s %s", printer.RedText(printer.Cross, fga.CheckResultNotAuthorized), warrantCheckString))
 		}
 
 		if debug {
