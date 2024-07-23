@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
+	"github.com/workos/workos-cli/internal/printer"
 	"regexp"
 
 	"github.com/charmbracelet/huh"
@@ -12,71 +12,87 @@ import (
 
 func init() {
 	rootCmd.AddCommand(initCmd)
+	initCmd.Flags().String(FlagEndpoint, "", "Override the API endpoint")
 }
 
 var initCmd = &cobra.Command{
 	Use:     "init",
-	Short:   "Initialize the CLI for use",
-	Long:    "Initialize the CLI for use, including configuring an environment and API key.",
+	Short:   "Initialize the CLI",
+	Long:    "Initialize the CLI by configuring an API key for it to use.",
 	Example: "workos init",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var (
-			apiKey      string
-			name        string
-			environment string
-			endpoint    string
+			name     string
+			envType  string
+			apiKey   string
+			endpoint string
 		)
 
-		err := huh.NewInput().
-			Title("Enter an API key.").
-			Value(&apiKey).
-			Run()
+		endpoint, err := cmd.Flags().GetString(FlagEndpoint)
 		if err != nil {
 			return err
 		}
 
-		err = huh.NewInput().
-			Title("Give this API key a unique name (e.g. john-local-dev).").
-			Value(&name).
-			Validate(func(s string) error {
-				if !regexp.MustCompile(ApiKeyRegex).Match([]byte(s)) {
-					return errors.New("the name can only contain alphanumeric characters and hyphens (-) or underscores (_)")
-				}
-				return nil
-			}).
-			Run()
-		if err != nil {
-			return err
+		if len(args) > 0 {
+			name = args[0]
+
+			if len(args) > 1 {
+				apiKey = args[1]
+			} else {
+				return errors.New("a valid API key is required")
+			}
+
+			if len(args) > 2 {
+				endpoint = args[2]
+			}
+		} else {
+			err := huh.NewInput().
+				Title("Enter a name for the new environment (e.g. local, staging, etc).").
+				Value(&name).
+				Validate(func(s string) error {
+					if !regexp.MustCompile(EnvironmentNameRegex).Match([]byte(s)) {
+						return errors.New("name must only contain lowercase alphanumeric characters and hyphens (-) or underscores (_)")
+					}
+					return nil
+				}).
+				Run()
+			if err != nil {
+				return err
+			}
+
+			err = huh.NewSelect[string]().
+				Title("Select the type of environment.").
+				Options(
+					huh.NewOption(EnvironmentTypeProduction, EnvironmentTypeProduction),
+					huh.NewOption(EnvironmentTypeSandbox, EnvironmentTypeSandbox),
+				).
+				Value(&envType).
+				Run()
+			if err != nil {
+				return err
+			}
+
+			err = huh.NewInput().
+				Title("Enter a valid API key for the environment.").
+				Value(&apiKey).
+				Run()
+			if err != nil {
+				return err
+			}
 		}
 
-		err = huh.NewInput().
-			Title("What environment is this API key for (e.g. Production, Sandbox, etc.)?").
-			Value(&environment).
-			Run()
-		if err != nil {
-			return err
-		}
-
-		err = huh.NewInput().
-			Title("Enter an API endpoint (optional, defaults to https://api.workos.com).").
-			Value(&endpoint).
-			Run()
-		if err != nil {
-			return err
-		}
-
-		fmt.Println("creating ~/.workos.json")
-		apiKeyMap := make(map[string]config.ApiKey)
-		apiKeyMap[name] = config.ApiKey{
-			Value:       apiKey,
-			Name:        name,
-			Environment: environment,
-			Endpoint:    endpoint,
+		printer.PrintMsg("creating ~/.workos.json")
+		envMap := make(map[string]config.Environment)
+		envMap[name] = config.Environment{
+			ApiKey:   apiKey,
+			Name:     name,
+			Type:     envType,
+			Endpoint: endpoint,
 		}
 		newConfig := config.Config{
-			ActiveApiKey: name,
-			ApiKeys:      apiKeyMap,
+			ActiveEnvironment: name,
+			Environments:      envMap,
 		}
 
 		err = newConfig.Write()
@@ -84,7 +100,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("WorkOS CLI initialized")
+		printer.PrintMsg("WorkOS CLI initialized")
 		return nil
 	},
 }
