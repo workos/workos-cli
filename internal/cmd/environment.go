@@ -194,6 +194,9 @@ var switchEnvCmd = &cobra.Command{
 
 		if len(args) > 0 {
 			selectedEnvironment = args[0]
+			if _, found := config.Environments[selectedEnvironment]; !found {
+				return errors.New("the specified environment does not exist")
+			}
 		} else {
 			err := huh.NewSelect[string]().
 				Title("Select an environment.").
