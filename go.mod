@@ -8,10 +8,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
-	github.com/workos/workos-go/v4 v4.14.0
+	github.com/workos/workos-go/v4 v4.16.0
 )
-
-replace github.com/workos/workos-go/v4 v4.14.0 => ../workos-go
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
