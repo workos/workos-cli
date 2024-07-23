@@ -88,7 +88,7 @@ var listResourceTypesCmd = &cobra.Command{
 			Limit: 100,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error listing resource types: %v", err))
+			return errors.Errorf("error listing resource types: %v", err)
 		}
 
 		tbl := printer.NewTable(80).Headers(
@@ -159,13 +159,13 @@ var assignRelationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid subject: %s", args[0]))
+			return errors.Errorf("invalid subject: %s", args[0])
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
 		resourceType, resourceId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
+			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
 		var policy string
@@ -189,7 +189,7 @@ var assignRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return errors.New(fmt.Sprintf("error assigning relation: %v", err))
+			return errors.Errorf("error assigning relation: %v", err)
 		}
 
 		printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
@@ -207,13 +207,13 @@ var removeRelationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid subject: %s", args[0]))
+			return errors.Errorf("invalid subject: %s", args[0])
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
 		resourceType, resourceId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
+			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
 		res, err := fga.WriteWarrant(
@@ -231,7 +231,7 @@ var removeRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return errors.New(fmt.Sprintf("error removing relation: %v", err))
+			return errors.Errorf("error removing relation: %v", err)
 		}
 
 		printer.PrintMsg(fmt.Sprintf("Removed %s %s %s", args[0], args[1], args[2]))
@@ -255,7 +255,7 @@ var createResourceCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		resourceType, resourceId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
+			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
 		var meta map[string]interface{}
@@ -263,7 +263,7 @@ var createResourceCmd = &cobra.Command{
 		if len(args) == 2 {
 			err = json.Unmarshal([]byte(args[1]), &meta)
 			if err != nil {
-				return errors.New(fmt.Sprintf("invalid resource meta: %s", args[1]))
+				return errors.Errorf("invalid resource meta: %s", args[1])
 			}
 		}
 
@@ -273,7 +273,7 @@ var createResourceCmd = &cobra.Command{
 			Meta:         meta,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error creating resource: %v", err))
+			return errors.Errorf("error creating resource: %v", err)
 		}
 
 		if len(createdResource.Meta) > 0 {
@@ -295,27 +295,27 @@ var listResourcesCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		resourceType, err := cmd.Flags().GetString("type")
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid type flag"))
+			return errors.Errorf("invalid type flag")
 		}
 		search, err := cmd.Flags().GetString("search")
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid search flag"))
+			return errors.Errorf("invalid search flag")
 		}
 		limit, err := cmd.Flags().GetInt("limit")
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid limit flag"))
+			return errors.Errorf("invalid limit flag")
 		}
 		before, err := cmd.Flags().GetString("before")
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid before flag"))
+			return errors.Errorf("invalid before flag")
 		}
 		after, err := cmd.Flags().GetString("after")
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid after flag"))
+			return errors.Errorf("invalid after flag")
 		}
 		order, err := cmd.Flags().GetString("order")
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid order flag"))
+			return errors.Errorf("invalid order flag")
 		}
 		var orderFilter fga.Order
 		if order != "" {
@@ -335,7 +335,7 @@ var listResourcesCmd = &cobra.Command{
 			Order:        orderFilter,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error listing resources: %v", err))
+			return errors.Errorf("error listing resources: %v", err)
 		}
 
 		tbl := printer.NewTable(120).Headers(
@@ -346,7 +346,7 @@ var listResourcesCmd = &cobra.Command{
 		for _, resource := range resources.Data {
 			metaString, err := json.MarshalIndent(resource.Meta, "", "    ")
 			if err != nil {
-				return errors.New(fmt.Sprintf("error listing resources: %v", err))
+				return errors.Errorf("error listing resources: %v", err)
 			}
 			tbl.Row(
 				resource.ResourceType,
@@ -371,13 +371,13 @@ var updateResourceCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		resourceType, resourceId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
+			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
 		var meta map[string]interface{}
 		err := json.Unmarshal([]byte(args[1]), &meta)
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid meta: %s", args[1]))
+			return errors.Errorf("invalid meta: %s", args[1])
 		}
 
 		updatedResource, err := fga.UpdateResource(context.Background(), fga.UpdateResourceOpts{
@@ -386,7 +386,7 @@ var updateResourceCmd = &cobra.Command{
 			Meta:         meta,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error updating resource: %v", err))
+			return errors.Errorf("error updating resource: %v", err)
 		}
 
 		printer.PrintMsg(fmt.Sprintf("Updated resource %s:%s", updatedResource.ResourceType, updatedResource.ResourceId))
@@ -403,7 +403,7 @@ var deleteResourceCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		resourceType, resourceId, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
+			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
 		err := fga.DeleteResource(context.Background(), fga.DeleteResourceOpts{
@@ -411,7 +411,7 @@ var deleteResourceCmd = &cobra.Command{
 			ResourceId:   resourceId,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error deleting resource: %v", err))
+			return errors.Errorf("error deleting resource: %v", err)
 		}
 
 		printer.PrintMsg(fmt.Sprintf("Deleted resource %s", args[0]))
@@ -428,20 +428,20 @@ var checkRelationCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid subject: %s", args[0]))
+			return errors.Errorf("invalid subject: %s", args[0])
 		}
 		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
 		relation := args[1]
 		resourceType, resourceId, valid := strings.Cut(args[2], ":")
 		if !valid {
-			return errors.New(fmt.Sprintf("invalid resource: %s", args[0]))
+			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
 		var policyContext map[string]interface{}
 		if len(args) > 3 {
 			err := json.Unmarshal([]byte(args[3]), &policyContext)
 			if err != nil {
-				return errors.New(fmt.Sprintf("invalid context: %s", args[3]))
+				return errors.Errorf("invalid context: %s", args[3])
 			}
 		}
 
@@ -476,12 +476,12 @@ var checkRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return errors.New(fmt.Sprintf("error evaluating check: %v", err))
+			return errors.Errorf("error evaluating check: %v", err)
 		}
 
 		warrantCheckString, err := warrantCheckAsString(warrantCheck)
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid check: %v", err))
+			return errors.Errorf("invalid check: %v", err)
 		}
 
 		assert, err := cmd.Flags().GetString("assert")
@@ -491,7 +491,7 @@ var checkRelationCmd = &cobra.Command{
 		if assert != "" {
 			assertBool, err := strconv.ParseBool(assert)
 			if err != nil {
-				return errors.New(fmt.Sprintf("invalid assertion: %s", assert))
+				return errors.Errorf("invalid assertion: %s", assert)
 			}
 
 			if assertBool == result.Authorized() {
@@ -548,7 +548,7 @@ var queryCmd = &cobra.Command{
 		if len(args) > 1 {
 			err := json.Unmarshal([]byte(args[3]), &policyContext)
 			if err != nil {
-				return errors.New(fmt.Sprintf("invalid context: %s", args[3]))
+				return errors.Errorf("invalid context: %s", args[3])
 			}
 		}
 
@@ -562,7 +562,7 @@ var queryCmd = &cobra.Command{
 			WarrantToken: warrantToken,
 		})
 		if err != nil {
-			return errors.New(fmt.Sprintf("error performing query: %v", err))
+			return errors.Errorf("error performing query: %v", err)
 		}
 
 		tbl := printer.NewTable(120).Headers(
@@ -575,7 +575,7 @@ var queryCmd = &cobra.Command{
 		for _, queryResult := range result.Data {
 			metaString, err := json.MarshalIndent(queryResult.Meta, "", "    ")
 			if err != nil {
-				return errors.New(fmt.Sprintf("error listing resources: %v", err))
+				return errors.Errorf("error listing resources: %v", err)
 			}
 			tbl.Row(
 				queryResult.ResourceType,
