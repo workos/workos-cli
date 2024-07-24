@@ -33,9 +33,10 @@ func init() {
 	fgaCmd.AddCommand(resourceTypeCmd)
 
 	// warrants
-	assignRelationCmd.Flags().StringP("policy", "p", "", "boolean expression to be evaluated for a warrant at the time of a check")
-	fgaCmd.AddCommand(assignRelationCmd)
-	fgaCmd.AddCommand(removeRelationCmd)
+	createWarrantCmd.Flags().StringP("policy", "p", "", "boolean expression to be evaluated for a warrant at the time of a check")
+	warrantCmd.AddCommand(createWarrantCmd)
+	warrantCmd.AddCommand(deleteWarrantCmd)
+	fgaCmd.AddCommand(warrantCmd)
 
 	// check
 	checkRelationCmd.Flags().StringP("warrantToken", "w", "", "warrant token to use for check")
@@ -152,11 +153,17 @@ var applyResourceTypesCmd = &cobra.Command{
 	},
 }
 
-var assignRelationCmd = &cobra.Command{
-	Use:     "assign <subject> <relation> <resource> [policy]",
-	Short:   "Assign a relation",
-	Long:    "Assign a relation between a given subject and a given resource, optionally specifying a policy that dictates when the relation applies.",
-	Example: "workos fga assign user:john owner document:xyz \"region == 'eu'\"",
+var warrantCmd = &cobra.Command{
+	Use:   "warrant",
+	Short: "Manage your warrants",
+	Long:  "Create and delete warrants. Warrants are used to define the relations between resources in your system.",
+}
+
+var createWarrantCmd = &cobra.Command{
+	Use:     "create <subject> <relation> <resource> [policy]",
+	Short:   "Create a warrant",
+	Long:    "Create a warrant between a given subject and a given resource, optionally specifying a policy that dictates when the relation applies.",
+	Example: "workos fga warrant create user:john owner document:xyz \"region == 'eu'\"",
 	Args:    cobra.RangeArgs(3, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
@@ -191,7 +198,7 @@ var assignRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return errors.Errorf("error assigning relation: %v", err)
+			return errors.Errorf("error creating warrant: %v", err)
 		}
 
 		if policy != "" {
@@ -204,11 +211,11 @@ var assignRelationCmd = &cobra.Command{
 	},
 }
 
-var removeRelationCmd = &cobra.Command{
-	Use:     "remove <subject> <relation> <resource>",
-	Short:   "Remove a relation",
-	Long:    "Remove a relation between a given subject and a given resource.",
-	Example: "workos fga remove user:john owner document:xyz",
+var deleteWarrantCmd = &cobra.Command{
+	Use:     "delete <subject> <relation> <resource>",
+	Short:   "Delete a warrant",
+	Long:    "Delete a warrant between a given subject and a given resource.",
+	Example: "workos fga warrant delete user:john owner document:xyz",
 	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
