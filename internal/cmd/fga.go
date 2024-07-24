@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/lipgloss/list"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss/list"
 
 	"github.com/pkg/errors"
 
@@ -32,8 +33,10 @@ func init() {
 	fgaCmd.AddCommand(resourceTypeCmd)
 
 	// warrants
-	fgaCmd.AddCommand(assignRelationCmd)
-	fgaCmd.AddCommand(removeRelationCmd)
+	createWarrantCmd.Flags().StringP("policy", "p", "", "boolean expression to be evaluated for a warrant at the time of a check")
+	warrantCmd.AddCommand(createWarrantCmd)
+	warrantCmd.AddCommand(deleteWarrantCmd)
+	fgaCmd.AddCommand(warrantCmd)
 
 	// check
 	checkRelationCmd.Flags().StringP("warrantToken", "w", "", "warrant token to use for check")
@@ -74,7 +77,7 @@ var fgaCmd = &cobra.Command{
 var resourceTypeCmd = &cobra.Command{
 	Use:   "resourcetype",
 	Short: "Manage your resource types",
-	Long:  "List and apply resource types. Resource types are used to define the types of resources in your system and the relations between them.",
+	Long:  "List and apply resource types. Resource types are used to define the types of resources in your application and the relations between them.",
 }
 
 var listResourceTypesCmd = &cobra.Command{
@@ -150,12 +153,18 @@ var applyResourceTypesCmd = &cobra.Command{
 	},
 }
 
-var assignRelationCmd = &cobra.Command{
-	Use:     "assign <subject> <relation> <resource> [policy]",
-	Short:   "Assign a relation",
-	Long:    "Assign a relation between a given subject and a given resource, optionally specifying a policy that dictates when the relation applies.",
-	Example: "workos fga assign user:john owner document:xyz",
-	Args:    cobra.RangeArgs(3, 4),
+var warrantCmd = &cobra.Command{
+	Use:   "warrant",
+	Short: "Manage your warrants",
+	Long:  "Create and delete warrants that define the relationships between resources in your application.",
+}
+
+var createWarrantCmd = &cobra.Command{
+	Use:     "create <subject> <relation> <resource> [policy]",
+	Short:   "Create a warrant",
+	Long:    "Create a warrant assigning a relation between a subject and a resource, optionally specifying a policy that dictates when the relation applies.",
+	Example: "workos fga warrant create user:john owner document:xyz --policy \"region == 'eu'\"",
+	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
@@ -168,9 +177,9 @@ var assignRelationCmd = &cobra.Command{
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
-		var policy string
-		if len(args) > 3 {
-			policy = args[3]
+		policy, err := cmd.Flags().GetString("policy")
+		if err != nil {
+			return errors.Errorf("invalid policy flag")
 		}
 
 		res, err := fga.WriteWarrant(
@@ -189,20 +198,24 @@ var assignRelationCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			return errors.Errorf("error assigning relation: %v", err)
+			return errors.Errorf("error creating warrant: %v", err)
 		}
 
-		printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
+		if policy != "" {
+			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s [%s]", args[0], args[1], args[2], policy))
+		} else {
+			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
+		}
 		printer.PrintMsg(fmt.Sprintf("Warrant-Token: %s", res.WarrantToken))
 		return nil
 	},
 }
 
-var removeRelationCmd = &cobra.Command{
-	Use:     "remove <subject> <relation> <resource>",
-	Short:   "Remove a relation",
-	Long:    "Remove a relation between a given subject and a given resource.",
-	Example: "workos fga remove user:john owner document:xyz",
+var deleteWarrantCmd = &cobra.Command{
+	Use:     "delete <subject> <relation> <resource>",
+	Short:   "Delete a warrant",
+	Long:    "Delete a warrant that assigns a relation between a subject and a resource.",
+	Example: "workos fga warrant delete user:john owner document:xyz",
 	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
