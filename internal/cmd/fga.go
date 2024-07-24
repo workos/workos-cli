@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/lipgloss/list"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss/list"
 
 	"github.com/pkg/errors"
 
@@ -32,6 +33,7 @@ func init() {
 	fgaCmd.AddCommand(resourceTypeCmd)
 
 	// warrants
+	assignRelationCmd.Flags().StringP("policy", "p", "", "boolean expression to be evaluated for a warrant at the time of a check")
 	fgaCmd.AddCommand(assignRelationCmd)
 	fgaCmd.AddCommand(removeRelationCmd)
 
@@ -154,7 +156,7 @@ var assignRelationCmd = &cobra.Command{
 	Use:     "assign <subject> <relation> <resource> [policy]",
 	Short:   "Assign a relation",
 	Long:    "Assign a relation between a given subject and a given resource, optionally specifying a policy that dictates when the relation applies.",
-	Example: "workos fga assign user:john owner document:xyz",
+	Example: "workos fga assign user:john owner document:xyz \"region == 'eu'\"",
 	Args:    cobra.RangeArgs(3, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
@@ -192,7 +194,11 @@ var assignRelationCmd = &cobra.Command{
 			return errors.Errorf("error assigning relation: %v", err)
 		}
 
-		printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
+		if policy != "" {
+			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s [%s]", args[0], args[1], args[2], args[3]))
+		} else {
+			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
+		}
 		printer.PrintMsg(fmt.Sprintf("Warrant-Token: %s", res.WarrantToken))
 		return nil
 	},
