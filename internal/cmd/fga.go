@@ -630,7 +630,7 @@ func buildDecisionTreeList(node fga.DecisionTreeNode) *list.List {
 	checkText := fmt.Sprintf(
 		"%s:%s#%s@%s:%s",
 		node.Check.ResourceType,
-		node.Check.ResourceType,
+		node.Check.ResourceId,
 		node.Check.Relation,
 		node.Check.Subject.ResourceType,
 		node.Check.Subject.ResourceId,
