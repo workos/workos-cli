@@ -77,7 +77,7 @@ var fgaCmd = &cobra.Command{
 var resourceTypeCmd = &cobra.Command{
 	Use:   "resourcetype",
 	Short: "Manage your resource types",
-	Long:  "List and apply resource types. Resource types are used to define the types of resources in your system and the relations between them.",
+	Long:  "List and apply resource types. Resource types are used to define the types of resources in your application and the relations between them.",
 }
 
 var listResourceTypesCmd = &cobra.Command{
@@ -156,15 +156,15 @@ var applyResourceTypesCmd = &cobra.Command{
 var warrantCmd = &cobra.Command{
 	Use:   "warrant",
 	Short: "Manage your warrants",
-	Long:  "Create and delete warrants. Warrants are used to define the relations between resources in your system.",
+	Long:  "Create and delete warrants that define the relationships between resources in your application.",
 }
 
 var createWarrantCmd = &cobra.Command{
 	Use:     "create <subject> <relation> <resource> [policy]",
 	Short:   "Create a warrant",
-	Long:    "Create a warrant between a given subject and a given resource, optionally specifying a policy that dictates when the relation applies.",
-	Example: "workos fga warrant create user:john owner document:xyz \"region == 'eu'\"",
-	Args:    cobra.RangeArgs(3, 4),
+	Long:    "Create a warrant assigning a relation between a subject and a resource, optionally specifying a policy that dictates when the relation applies.",
+	Example: "workos fga warrant create user:john owner document:xyz --policy \"region == 'eu'\"",
+	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
 		if !valid {
@@ -177,9 +177,9 @@ var createWarrantCmd = &cobra.Command{
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
 
-		var policy string
-		if len(args) > 3 {
-			policy = args[3]
+		policy, err := cmd.Flags().GetString("policy")
+		if err != nil {
+			return errors.Errorf("invalid policy flag")
 		}
 
 		res, err := fga.WriteWarrant(
@@ -202,7 +202,7 @@ var createWarrantCmd = &cobra.Command{
 		}
 
 		if policy != "" {
-			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s [%s]", args[0], args[1], args[2], args[3]))
+			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s [%s]", args[0], args[1], args[2], policy))
 		} else {
 			printer.PrintMsg(fmt.Sprintf("Assigned %s %s %s", args[0], args[1], args[2]))
 		}
@@ -214,7 +214,7 @@ var createWarrantCmd = &cobra.Command{
 var deleteWarrantCmd = &cobra.Command{
 	Use:     "delete <subject> <relation> <resource>",
 	Short:   "Delete a warrant",
-	Long:    "Delete a warrant between a given subject and a given resource.",
+	Long:    "Delete a warrant that assigns a relation between a subject and a resource.",
 	Example: "workos fga warrant delete user:john owner document:xyz",
 	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
