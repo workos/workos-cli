@@ -1,4 +1,4 @@
-project_name: WorkOS CLI
+project_name: workos_cli
 before:
   hooks:
   # - go mod tidy
@@ -30,7 +30,7 @@ builds:
 archives:
   - format: tar.gz
     name_template: >-
-      {{ .ProjectName }} 
+      {{ .ProjectName }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
