@@ -69,8 +69,8 @@ WorkOS CLI support environment variables for initialization and environment mana
 export WORKOS_ACTIVE_ENVIRONMENT=local
 ```
 
+`.workos.json`
 ```json
-// .workos.json
 {
   "environments": {
     "local": {
