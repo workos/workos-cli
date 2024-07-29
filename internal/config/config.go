@@ -97,6 +97,5 @@ func LoadConfig() *Config {
 	var config Config
 	err = viper.Unmarshal(&config)
 	cobra.CheckErr(err)
-
 	return &config
 }
