@@ -49,3 +49,46 @@ Once initialized, the CLI is ready to use:
 ```shell
 workos [cmd] [args]
 ```
+
+### Environment Variables
+WorkOS CLI support environment variables for initialization and environment management.
+
+| Environment Variable              | Description                                                                                                                                   | Supported Values     |
+|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
+| WORKOS_ACTIVE_ENVIRONMENT         | Sets the selected environment in your .workos.json file. Use `env` to override environment configs with other environment variable overrides. |                      |
+| WORKOS_ENVIRONMENTS_ENV_NAME      | Sets the name of the environment                                                                                                              |                      |
+| WORKOS_ENVIRONMENTS_ENV_ENDPOINT  | Sets the base endpoint for the environment                                                                                                    |                      |
+| WORKOS_ENVIRONMENTS_ENV_API_KEY   | Sets the API key for the environment                                                                                                          |                      |
+| WORKOS_ENVIRONMENTS_ENV_TYPE      | Sets the env type for the environment                                                                                                         | Production / Sandbox |
+
+#### Examples
+
+##### Set the active environment
+
+```shell
+export WORKOS_ACTIVE_ENVIRONMENT=local
+```
+
+```json
+// .workos.json
+{
+  "environments": {
+    "local": {
+      "endpoint": "http://localhost:8001",
+      "apiKey": "<YOUR_KEY>",
+      "type": "Sandbox",
+      "name": "local"
+    }
+  }
+}
+```
+
+##### Headless Mode
+
+```shell
+export WORKOS_ACTIVE_ENVIRONMENT=env
+export WORKOS_ENVIRONMENTS_ENV_NAME=local
+export WORKOS_ENVIRONMENTS_ENV_ENDPOINT=http://localhost:8001
+export WORKOS_ENVIRONMENTS_ENV_API_KEY=<YOUR_KEY>
+export WORKOS_ENVIRONMENTS_ENV_TYPE=Sandbox
+```

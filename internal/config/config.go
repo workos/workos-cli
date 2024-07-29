@@ -3,17 +3,19 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"io/fs"
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io/fs"
+	"os"
+	"strings"
 )
 
 const (
-	FilePrefix    = ".workos"
-	FileExtension = "json"
-	FileName      = FilePrefix + "." + FileExtension
+	EnvVarPrefix       = "WORKOS"
+	EnvVarHeadlessMode = "env"
+	FilePrefix         = ".workos"
+	FileExtension      = "json"
+	FileName           = FilePrefix + "." + FileExtension
 )
 
 type Config struct {
@@ -44,22 +46,50 @@ func (c Config) Write() error {
 	return nil
 }
 
-func LoadConfig() *Config {
-	// Look for .workos.json in HOME dir and create an empty version if it doesn't exist
-	homeDir, err := os.UserHomeDir()
-	cobra.CheckErr(err)
-	_, err = os.Stat(homeDir + "/" + FileName)
+// Creates an empty config file if it doesn't exist
+func createEmptyConfigFile(dir string) {
+	_, err := os.Stat(dir + "/" + FileName)
 	if errors.Is(err, fs.ErrNotExist) {
 		emptyJson := []byte("{}")
-		err = os.WriteFile(homeDir+"/"+FileName, emptyJson, 0644)
+		err = os.WriteFile(dir+"/"+FileName, emptyJson, 0644)
 		cobra.CheckErr(err)
 	}
+}
+
+// Loads config values from environment variables if active environment is set to headless mode
+// Supports overriding nested json keys with environment variables
+// e.g. environments.env.endpoint -> WORKOS_ENVIRONMENTS_ENV_ENDPOINT
+func loadEnvVarOverrides() {
+	viper.SetEnvPrefix(EnvVarPrefix)
+	// replace '.' in env var names with '_' to support overriding nested json keys
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// read in environment variables that match
+	viper.AutomaticEnv()
+
+	_ = viper.BindEnv("active_environment")
+	activeEnvironment := viper.Get("active_environment")
+
+	// Binds environment variables to nested json keys which allows unmarshalling into struct
+	if activeEnvironment == EnvVarHeadlessMode {
+		_ = viper.BindEnv("environments.env.endpoint")
+		_ = viper.BindEnv("environments.env.type")
+		_ = viper.BindEnv("environments.env.name")
+		_ = viper.BindEnv("environments.env.api_key")
+	}
+}
+
+func LoadConfig() *Config {
+	homeDir, err := os.UserHomeDir()
+	cobra.CheckErr(err)
+	createEmptyConfigFile(homeDir)
 
 	// Load config from ~/.workos.json
 	viper.AddConfigPath(homeDir)
 	viper.SetConfigType(FileExtension)
 	viper.SetConfigName(FilePrefix)
-	viper.AutomaticEnv() // read in environment variables that match
+
+	loadEnvVarOverrides()
+
 	err = viper.ReadInConfig()
 	cobra.CheckErr(err)
 
@@ -67,5 +97,6 @@ func LoadConfig() *Config {
 	var config Config
 	err = viper.Unmarshal(&config)
 	cobra.CheckErr(err)
+
 	return &config
 }
