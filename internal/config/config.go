@@ -12,7 +12,7 @@ import (
 
 const (
 	EnvVarPrefix       = "WORKOS"
-	EnvVarHeadlessMode = "env"
+	EnvVarHeadlessMode = "headless"
 	FilePrefix         = ".workos"
 	FileExtension      = "json"
 	FileName           = FilePrefix + "." + FileExtension
@@ -58,7 +58,7 @@ func createEmptyConfigFile(dir string) {
 
 // Loads config values from environment variables if active environment is set to headless mode
 // Supports overriding nested json keys with environment variables
-// e.g. environments.env.endpoint -> WORKOS_ENVIRONMENTS_ENV_ENDPOINT
+// e.g. environments.headless.endpoint -> WORKOS_ENVIRONMENTS_HEADLESS_ENDPOINT
 func loadEnvVarOverrides() {
 	viper.SetEnvPrefix(EnvVarPrefix)
 	// replace '.' in env var names with '_' to support overriding nested json keys
@@ -71,10 +71,10 @@ func loadEnvVarOverrides() {
 
 	// Binds environment variables to nested json keys which allows unmarshalling into struct
 	if activeEnvironment == EnvVarHeadlessMode {
-		_ = viper.BindEnv("environments.env.endpoint")
-		_ = viper.BindEnv("environments.env.type")
-		_ = viper.BindEnv("environments.env.name")
-		_ = viper.BindEnv("environments.env.api_key")
+		_ = viper.BindEnv("environments.headless.endpoint")
+		_ = viper.BindEnv("environments.headless.type")
+		_ = viper.BindEnv("environments.headless.name")
+		_ = viper.BindEnv("environments.headless.api_key")
 	}
 }
 

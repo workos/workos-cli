@@ -53,13 +53,13 @@ workos [cmd] [args]
 ### Environment Variables
 WorkOS CLI support environment variables for initialization and environment management.
 
-| Environment Variable              | Description                                                                                                                                   | Supported Values     |
-|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
-| WORKOS_ACTIVE_ENVIRONMENT         | Sets the selected environment in your .workos.json file. Use `env` to override environment configs with other environment variable overrides. |                      |
-| WORKOS_ENVIRONMENTS_ENV_NAME      | Sets the name of the environment                                                                                                              |                      |
-| WORKOS_ENVIRONMENTS_ENV_ENDPOINT  | Sets the base endpoint for the environment                                                                                                    |                      |
-| WORKOS_ENVIRONMENTS_ENV_API_KEY   | Sets the API key for the environment                                                                                                          |                      |
-| WORKOS_ENVIRONMENTS_ENV_TYPE      | Sets the env type for the environment                                                                                                         | Production / Sandbox |
+| Environment Variable                  | Description                                                                                                                                        | Supported Values     |
+|---------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
+| WORKOS_ACTIVE_ENVIRONMENT             | Sets the selected environment in your .workos.json file. Use `headless` to override environment configs with other environment variable overrides. |                      |
+| WORKOS_ENVIRONMENTS_HEADLESS_NAME     | Sets the name of the environment                                                                                                                   |                      |
+| WORKOS_ENVIRONMENTS_HEADLESS_ENDPOINT | Sets the base endpoint for the environment                                                                                                         |                      |
+| WORKOS_ENVIRONMENTS_HEADLESS_API_KEY  | Sets the API key for the environment                                                                                                               |                      |
+| WORKOS_ENVIRONMENTS_HEADLESS_TYPE     | Sets the env type for the environment                                                                                                              | Production / Sandbox |
 
 #### Examples
 
@@ -86,9 +86,9 @@ export WORKOS_ACTIVE_ENVIRONMENT=local
 ##### Headless Mode
 
 ```shell
-export WORKOS_ACTIVE_ENVIRONMENT=env
-export WORKOS_ENVIRONMENTS_ENV_NAME=local
-export WORKOS_ENVIRONMENTS_ENV_ENDPOINT=http://localhost:8001
-export WORKOS_ENVIRONMENTS_ENV_API_KEY=<YOUR_KEY>
-export WORKOS_ENVIRONMENTS_ENV_TYPE=Sandbox
+export WORKOS_ACTIVE_ENVIRONMENT=headless
+export WORKOS_ENVIRONMENTS_HEADLESS_NAME=local
+export WORKOS_ENVIRONMENTS_HEADLESS_ENDPOINT=http://localhost:8001
+export WORKOS_ENVIRONMENTS_HEADLESS_API_KEY=<YOUR_KEY>
+export WORKOS_ENVIRONMENTS_HEADLESS_TYPE=Sandbox
 ```
