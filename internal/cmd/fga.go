@@ -559,9 +559,9 @@ var queryCmd = &cobra.Command{
 		}
 		var policyContext map[string]interface{}
 		if len(args) > 1 {
-			err := json.Unmarshal([]byte(args[3]), &policyContext)
+			err := json.Unmarshal([]byte(args[1]), &policyContext)
 			if err != nil {
-				return errors.Errorf("invalid context: %s", args[3])
+				return errors.Errorf("invalid context: %s", args[1])
 			}
 		}
 
