@@ -61,3 +61,10 @@ brews:
     commit_author:
       name: WorkOS
       email: support@workos.com
+dockers:
+  - ids:
+      - linux
+    image_templates:
+      - "public.ecr.aws/p9s6f8y8/workos-cli:{{.Version}}"
+    build_flag_templates:
+      - "--platform=linux/amd64"
