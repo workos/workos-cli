@@ -68,10 +68,10 @@ func init() {
 
 	// schema
 	convertSchemaCMD.Flags().String("to", "json", "output to (schema or json)")
-	convertSchemaCMD.Flags().String("output-format", "pretty", "output format (pretty or raw). use raw for machine-readable output or writing to a file")
+	convertSchemaCMD.Flags().BoolP("raw", "r", false, "output raw JSON or raw schema to pipe into a file")
 	schemaCmd.AddCommand(convertSchemaCMD)
 	applySchemaCmd.Flags().BoolP("verbose", "v", false, "print extra details about the request")
-	applySchemaCmd.Flags().Bool("fail-on-warnings", false, "fail if there are warnings")
+	applySchemaCmd.Flags().Bool("strict", false, "fail if there are warnings")
 	schemaCmd.AddCommand(applySchemaCmd)
 	fgaCmd.AddCommand(schemaCmd)
 
@@ -633,7 +633,7 @@ var convertSchemaCMD = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "invalid to flag")
 		}
-		outputFormat, err := cmd.Flags().GetString("output-format")
+		raw, err := cmd.Flags().GetBool("raw")
 		if err != nil {
 			return errors.Wrap(err, "invalid raw flag")
 		}
@@ -667,37 +667,36 @@ var convertSchemaCMD = &cobra.Command{
 			return errors.Errorf("invalid conversion: %s", to)
 		}
 
-		switch outputFormat {
-		case "pretty":
-			printer.PrintMsg("Version:")
-			printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
-
-			if response.Warnings != nil {
-				printer.PrintMsg("Warnings:")
-				for _, warning := range response.Warnings {
-					printer.PrintMsg(warning.Message)
-				}
-				printer.PrintMsg("\n")
-			}
-
-			if response.Schema != nil {
-				printer.PrintMsg("Schema:")
-				printer.PrintMsg(*response.Schema)
-			}
-
-			if response.ResourceTypes != nil {
-				printer.PrintMsg("Resource Types:")
-				printer.PrintJson(response.ResourceTypes)
-			}
-		case "raw":
+		if raw {
 			if response.Schema != nil {
 				printer.PrintMsg(*response.Schema)
 			} else {
 				printer.PrintJson(response.ResourceTypes)
 			}
-		default:
-			return errors.Errorf("invalid output format: %s", outputFormat)
+			return nil
 		}
+
+		printer.PrintMsg("Version:")
+		printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
+
+		if response.Warnings != nil {
+			printer.PrintMsg("Warnings:")
+			for _, warning := range response.Warnings {
+				printer.PrintMsg(warning.Message)
+			}
+			printer.PrintMsg("\n")
+		}
+
+		if response.Schema != nil {
+			printer.PrintMsg("Schema:")
+			printer.PrintMsg(*response.Schema)
+		}
+
+		if response.ResourceTypes != nil {
+			printer.PrintMsg("Resource Types:")
+			printer.PrintJson(response.ResourceTypes)
+		}
+
 		return nil
 	},
 }
@@ -713,9 +712,9 @@ var applySchemaCmd = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "invalid verbose flag")
 		}
-		failOnWarnings, err := cmd.Flags().GetBool("fail-on-warnings")
+		strict, err := cmd.Flags().GetBool("strict")
 		if err != nil {
-			return errors.Wrap(err, "invalid fail-on-warnings flag")
+			return errors.Wrap(err, "invalid strict flag")
 		}
 
 		bytes, err := os.ReadFile(args[0])
@@ -736,8 +735,8 @@ var applySchemaCmd = &cobra.Command{
 				printer.PrintMsg(warning.Message)
 			}
 			printer.PrintMsg("\n")
-			if failOnWarnings {
-				return errors.New("error applying schema: warnings found (omit --fail-on-warnings to ignore)")
+			if strict {
+				return errors.New("error applying schema: warnings found (omit --strict to ignore)")
 			}
 		}
 
