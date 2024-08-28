@@ -67,7 +67,8 @@ func init() {
 	fgaCmd.AddCommand(queryCmd)
 
 	// schema
-	convertSchemaCMD.Flags().StringP("output", "o", "json", "output format (schema or json)")
+	convertSchemaCMD.Flags().String("to", "json", "output to (schema or json)")
+	convertSchemaCMD.Flags().String("output-format", "pretty", "output format (pretty or raw). use raw for machine-readable output or writing to a file")
 	schemaCmd.AddCommand(convertSchemaCMD)
 	applySchemaCmd.Flags().BoolP("verbose", "v", false, "print extra details about the request")
 	applySchemaCmd.Flags().Bool("fail-on-warnings", false, "fail if there are warnings")
@@ -628,9 +629,13 @@ var convertSchemaCMD = &cobra.Command{
 	Example: `workos fga schema convert schema.txt -o json`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		output, err := cmd.Flags().GetString("output")
+		to, err := cmd.Flags().GetString("to")
 		if err != nil {
-			return errors.Wrap(err, "invalid output flag")
+			return errors.Wrap(err, "invalid to flag")
+		}
+		outputFormat, err := cmd.Flags().GetString("output-format")
+		if err != nil {
+			return errors.Wrap(err, "invalid raw flag")
 		}
 
 		bytes, err := os.ReadFile(args[0])
@@ -639,7 +644,7 @@ var convertSchemaCMD = &cobra.Command{
 		}
 
 		var response fga.ConvertSchemaResponse
-		switch output {
+		switch to {
 		case "json":
 			schemaString := string(bytes)
 			response, err = fga.ConvertSchemaToResourceTypes(context.Background(), fga.ConvertSchemaToResourceTypesOpts{
@@ -659,30 +664,40 @@ var convertSchemaCMD = &cobra.Command{
 				return convertSchemaError(err)
 			}
 		default:
-			return errors.Errorf("invalid output format: %s", output)
+			return errors.Errorf("invalid conversion: %s", to)
 		}
 
-		printer.PrintMsg("Version:")
-		printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
+		switch outputFormat {
+		case "pretty":
+			printer.PrintMsg("Version:")
+			printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
 
-		if response.Warnings != nil {
-			printer.PrintMsg("Warnings:")
-			for _, warning := range response.Warnings {
-				printer.PrintMsg(fmt.Sprintf("%s", warning.Message))
+			if response.Warnings != nil {
+				printer.PrintMsg("Warnings:")
+				for _, warning := range response.Warnings {
+					printer.PrintMsg(fmt.Sprintf("%s", warning.Message))
+				}
+				printer.PrintMsg("\n")
 			}
-			printer.PrintMsg("\n")
-		}
 
-		if response.Schema != nil {
-			printer.PrintMsg("Schema:")
-			printer.PrintMsg(fmt.Sprintf("%s", *response.Schema))
-		}
+			if response.Schema != nil {
+				printer.PrintMsg("Schema:")
+				printer.PrintMsg(fmt.Sprintf("%s", *response.Schema))
+			}
 
-		if response.ResourceTypes != nil {
-			printer.PrintMsg("Resource Types:")
-			printer.PrintJson(response.ResourceTypes)
+			if response.ResourceTypes != nil {
+				printer.PrintMsg("Resource Types:")
+				printer.PrintJson(response.ResourceTypes)
+			}
+		case "raw":
+			if response.Schema != nil {
+				printer.PrintMsg(*response.Schema)
+			} else {
+				printer.PrintJson(response.ResourceTypes)
+			}
+		default:
+			return errors.Errorf("invalid output format: %s", outputFormat)
 		}
-
 		return nil
 	},
 }
