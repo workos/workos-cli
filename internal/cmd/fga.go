@@ -68,7 +68,7 @@ func init() {
 
 	// schema
 	convertSchemaCMD.Flags().String("to", "json", "output to (schema or json)")
-	convertSchemaCMD.Flags().BoolP("raw", "r", false, "output raw JSON or raw schema to pipe into a file")
+	convertSchemaCMD.Flags().String("output", "pretty", "output pretty or raw. use raw for machine-readable output or writing to a file")
 	schemaCmd.AddCommand(convertSchemaCMD)
 	applySchemaCmd.Flags().BoolP("verbose", "v", false, "print extra details about the request")
 	applySchemaCmd.Flags().Bool("strict", false, "fail if there are warnings")
@@ -633,9 +633,9 @@ var convertSchemaCMD = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "invalid to flag")
 		}
-		raw, err := cmd.Flags().GetBool("raw")
+		output, err := cmd.Flags().GetString("output")
 		if err != nil {
-			return errors.Wrap(err, "invalid raw flag")
+			return errors.Wrap(err, "invalid output flag")
 		}
 
 		bytes, err := os.ReadFile(args[0])
@@ -667,36 +667,37 @@ var convertSchemaCMD = &cobra.Command{
 			return errors.Errorf("invalid conversion: %s", to)
 		}
 
-		if raw {
+		switch output {
+		case "pretty":
+			printer.PrintMsg("Version:")
+			printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
+
+			if response.Warnings != nil {
+				printer.PrintMsg("Warnings:")
+				for _, warning := range response.Warnings {
+					printer.PrintMsg(warning.Message)
+				}
+				printer.PrintMsg("\n")
+			}
+
+			if response.Schema != nil {
+				printer.PrintMsg("Schema:")
+				printer.PrintMsg(*response.Schema)
+			}
+
+			if response.ResourceTypes != nil {
+				printer.PrintMsg("Resource Types:")
+				printer.PrintJson(response.ResourceTypes)
+			}
+		case "raw":
 			if response.Schema != nil {
 				printer.PrintMsg(*response.Schema)
 			} else {
 				printer.PrintJson(response.ResourceTypes)
 			}
-			return nil
+		default:
+			return errors.Errorf("invalid output: %s", output)
 		}
-
-		printer.PrintMsg("Version:")
-		printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
-
-		if response.Warnings != nil {
-			printer.PrintMsg("Warnings:")
-			for _, warning := range response.Warnings {
-				printer.PrintMsg(warning.Message)
-			}
-			printer.PrintMsg("\n")
-		}
-
-		if response.Schema != nil {
-			printer.PrintMsg("Schema:")
-			printer.PrintMsg(*response.Schema)
-		}
-
-		if response.ResourceTypes != nil {
-			printer.PrintMsg("Resource Types:")
-			printer.PrintJson(response.ResourceTypes)
-		}
-
 		return nil
 	},
 }
