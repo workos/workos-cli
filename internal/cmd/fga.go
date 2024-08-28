@@ -749,10 +749,7 @@ var applySchemaCmd = &cobra.Command{
 
 		ops := make([]fga.UpdateResourceTypeOpts, 0)
 		for _, rt := range response.ResourceTypes {
-			ops = append(ops, fga.UpdateResourceTypeOpts{
-				Type:      rt.Type,
-				Relations: rt.Relations,
-			})
+			ops = append(ops, fga.UpdateResourceTypeOpts(rt))
 		}
 
 		_, err = fga.BatchUpdateResourceTypes(context.Background(), ops)
