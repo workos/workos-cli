@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/workos/workos-cli/internal/printer"
 	"github.com/workos/workos-go/v4/pkg/fga"
+	"github.com/workos/workos-go/v4/pkg/workos_errors"
 )
 
 var resourceTypesFile string
@@ -64,6 +65,15 @@ func init() {
 	queryCmd.Flags().String("after", "", "cursor indicating results that occur after a specific result")
 	queryCmd.Flags().String("order", "", "order in which a list of results should be returned (asc or desc)")
 	fgaCmd.AddCommand(queryCmd)
+
+	// schema
+	convertSchemaCMD.Flags().String("to", "json", "output to (schema or json)")
+	convertSchemaCMD.Flags().String("output", "pretty", "output pretty or raw. use raw for machine-readable output or writing to a file")
+	schemaCmd.AddCommand(convertSchemaCMD)
+	applySchemaCmd.Flags().BoolP("verbose", "v", false, "print extra details about the request")
+	applySchemaCmd.Flags().Bool("strict", false, "fail if there are warnings")
+	schemaCmd.AddCommand(applySchemaCmd)
+	fgaCmd.AddCommand(schemaCmd)
 
 	rootCmd.AddCommand(fgaCmd)
 }
@@ -604,6 +614,162 @@ var queryCmd = &cobra.Command{
 		printer.PrintMsg(fmt.Sprintf("After: %s", result.ListMetadata.After))
 		return nil
 	},
+}
+
+var schemaCmd = &cobra.Command{
+	Use:   "schema",
+	Short: "Manage your schema",
+	Long:  "A schema is a set of resource types and relations that define the structure of your application. Use this command to manage your schema.",
+}
+
+var convertSchemaCMD = &cobra.Command{
+	Use:     "convert <input_file>",
+	Short:   "Convert a schema to a JSON representation (or JSON to schema)",
+	Long:    "Convert a schema to a JSON representation (or JSON to schema) that can be used to apply resource types.",
+	Example: `workos fga schema convert schema.txt -o json`,
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		to, err := cmd.Flags().GetString("to")
+		if err != nil {
+			return errors.Wrap(err, "invalid to flag")
+		}
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			return errors.Wrap(err, "invalid output flag")
+		}
+
+		bytes, err := os.ReadFile(args[0])
+		if err != nil {
+			return errors.Errorf("error reading input file: %v", err)
+		}
+
+		var response fga.ConvertSchemaResponse
+		switch to {
+		case "json":
+			schemaString := string(bytes)
+			response, err = fga.ConvertSchemaToResourceTypes(context.Background(), fga.ConvertSchemaToResourceTypesOpts{
+				Schema: schemaString,
+			})
+			if err != nil {
+				return convertSchemaError(err)
+			}
+		case "schema":
+			var resourceTypesWithVersion fga.ConvertResourceTypesToSchemaOpts
+			err = json.Unmarshal(bytes, &resourceTypesWithVersion)
+			if err != nil {
+				return errors.Errorf("error unmarshalling resource types: %v", err)
+			}
+			response, err = fga.ConvertResourceTypesToSchema(context.Background(), resourceTypesWithVersion)
+			if err != nil {
+				return convertSchemaError(err)
+			}
+		default:
+			return errors.Errorf("invalid conversion: %s", to)
+		}
+
+		switch output {
+		case "pretty":
+			printer.PrintMsg("Version:")
+			printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
+
+			if response.Warnings != nil {
+				printer.PrintMsg("Warnings:")
+				for _, warning := range response.Warnings {
+					printer.PrintMsg(warning.Message)
+				}
+				printer.PrintMsg("\n")
+			}
+
+			if response.Schema != nil {
+				printer.PrintMsg("Schema:")
+				printer.PrintMsg(*response.Schema)
+			}
+
+			if response.ResourceTypes != nil {
+				printer.PrintMsg("Resource Types:")
+				printer.PrintJson(response.ResourceTypes)
+			}
+		case "raw":
+			if response.Schema != nil {
+				printer.PrintMsg(*response.Schema)
+			} else {
+				printer.PrintJson(response.ResourceTypes)
+			}
+		default:
+			return errors.Errorf("invalid output: %s", output)
+		}
+		return nil
+	},
+}
+
+var applySchemaCmd = &cobra.Command{
+	Use:     "apply <input_file>",
+	Short:   "Apply a schema",
+	Long:    "Apply a schema to create or update resource types.",
+	Example: `workos fga schema apply schema.txt`,
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		verbose, err := cmd.Flags().GetBool("verbose")
+		if err != nil {
+			return errors.Wrap(err, "invalid verbose flag")
+		}
+		strict, err := cmd.Flags().GetBool("strict")
+		if err != nil {
+			return errors.Wrap(err, "invalid strict flag")
+		}
+
+		bytes, err := os.ReadFile(args[0])
+		if err != nil {
+			return errors.Errorf("error reading input file: %v", err)
+		}
+		// Convert schema to resource types
+		response, err := fga.ConvertSchemaToResourceTypes(context.Background(), fga.ConvertSchemaToResourceTypesOpts{
+			Schema: string(bytes),
+		})
+		if err != nil {
+			return convertSchemaError(err)
+		}
+
+		if response.Warnings != nil {
+			printer.PrintMsg("Warnings:")
+			for _, warning := range response.Warnings {
+				printer.PrintMsg(warning.Message)
+			}
+			printer.PrintMsg("\n")
+			if strict {
+				return errors.New("error applying schema: warnings found (omit --strict to ignore)")
+			}
+		}
+
+		printer.PrintMsg("applying schema...")
+
+		if verbose {
+			printer.PrintJson(response.ResourceTypes)
+		}
+
+		ops := make([]fga.UpdateResourceTypeOpts, 0)
+		for _, rt := range response.ResourceTypes {
+			ops = append(ops, fga.UpdateResourceTypeOpts(rt))
+		}
+
+		_, err = fga.BatchUpdateResourceTypes(context.Background(), ops)
+		if err != nil {
+			return errors.Errorf("error applying schema: %v", err)
+		}
+
+		printer.PrintMsg("Schema applied")
+		return nil
+	},
+}
+
+func convertSchemaError(err error) error {
+	var target workos_errors.HTTPError
+	if errors.As(err, &target) {
+		if len(target.Errors) > 0 {
+			return errors.Errorf("error converting schema: %s\n\t%s", target.Message, strings.Join(target.Errors, "\n\t"))
+		}
+	}
+	return errors.Errorf("error converting schema: %v", err)
 }
 
 func warrantCheckAsString(w fga.WarrantCheck) (string, error) {
