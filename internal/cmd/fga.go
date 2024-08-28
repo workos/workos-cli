@@ -675,14 +675,14 @@ var convertSchemaCMD = &cobra.Command{
 			if response.Warnings != nil {
 				printer.PrintMsg("Warnings:")
 				for _, warning := range response.Warnings {
-					printer.PrintMsg(fmt.Sprintf("%s", warning.Message))
+					printer.PrintMsg(warning.Message)
 				}
 				printer.PrintMsg("\n")
 			}
 
 			if response.Schema != nil {
 				printer.PrintMsg("Schema:")
-				printer.PrintMsg(fmt.Sprintf("%s", *response.Schema))
+				printer.PrintMsg(*response.Schema)
 			}
 
 			if response.ResourceTypes != nil {
@@ -733,7 +733,7 @@ var applySchemaCmd = &cobra.Command{
 		if response.Warnings != nil {
 			printer.PrintMsg("Warnings:")
 			for _, warning := range response.Warnings {
-				printer.PrintMsg(fmt.Sprintf("%s", warning.Message))
+				printer.PrintMsg(warning.Message)
 			}
 			printer.PrintMsg("\n")
 			if failOnWarnings {
