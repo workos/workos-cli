@@ -13,7 +13,7 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
   - id: linux
     goos: [linux]
-    goarch: [386, arm, amd64, arm64]
+    goarch: ["386", arm, amd64, arm64]
     env:
       - CGO_ENABLED=0
     binary: bin/workos
@@ -22,7 +22,7 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
   - id: windows
     goos: [windows]
-    goarch: [386, amd64, arm64]
+    goarch: ["386", amd64, arm64]
     binary: bin/workos
     main: ./cmd/workos/
     ldflags:
@@ -61,3 +61,10 @@ brews:
     commit_author:
       name: WorkOS
       email: support@workos.com
+dockers:
+  - ids:
+      - linux
+    image_templates:
+      - "public.ecr.aws/p9s6f8y8/workos-cli:{{.Version}}"
+    build_flag_templates:
+      - "--platform=linux/amd64"
