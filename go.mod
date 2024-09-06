@@ -1,6 +1,6 @@
 module github.com/workos/workos-cli
 
-go 1.22.2
+go 1.23
 
 require (
 	github.com/charmbracelet/huh v0.5.1
