@@ -626,7 +626,7 @@ var convertSchemaCMD = &cobra.Command{
 	Use:     "convert <input_file>",
 	Short:   "Convert a schema to a JSON representation (or JSON to schema)",
 	Long:    "Convert a schema to a JSON representation (or JSON to schema) that can be used to apply resource types.",
-	Example: `workos fga schema convert schema.txt -o json`,
+	Example: `workos fga schema convert schema.txt --to json`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		to, err := cmd.Flags().GetString("to")
@@ -693,7 +693,7 @@ var convertSchemaCMD = &cobra.Command{
 			if response.Schema != nil {
 				printer.PrintMsg(*response.Schema)
 			} else {
-				printer.PrintJson(response.ResourceTypes)
+				printer.PrintJson(response)
 			}
 		default:
 			return errors.Errorf("invalid output: %s", output)
