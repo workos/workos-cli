@@ -53,12 +53,13 @@ func (g *TypeScriptTypeGenerator) generateAuditLogEventInterface(action auditlog
 	var properties []string
 
 	properties = append(properties, fmt.Sprintf("  action: '%s';", action.Name))
-	properties = append(properties, "  occurredAt: string;")
+	properties = append(properties, "  occurredAt: Date;")
 	properties = append(properties, fmt.Sprintf("  version?: number;"))
 
 	actorProps := []string{
 		"    id: string;",
 		"    name?: string;",
+		"    type: string;",
 	}
 
 	if len(action.Schema.Actor.Metadata.Properties) > 0 {
@@ -84,7 +85,7 @@ func (g *TypeScriptTypeGenerator) generateAuditLogEventInterface(action auditlog
 			targetTypes = append(targetTypes, fmt.Sprintf("{\n%s\n  }", strings.Join(targetProps, "\n")))
 		}
 
-		properties = append(properties, fmt.Sprintf("  targets: (%s)[];", strings.Join(targetTypes, " | ")))
+		properties = append(properties, fmt.Sprintf("  targets: [%s];", strings.Join(targetTypes, " | ")))
 	}
 
 	contextProps := []string{

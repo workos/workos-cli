@@ -61,4 +61,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/workos/workos-go/v4 => github.com/workos/workos-go/v4 v4.26.1-0.20241219170524-3ecd219ec436
+replace github.com/workos/workos-go/v4 => github.com/workos/workos-go/v4 v4.26.1-0.20241219211902-f955b0c971ae
