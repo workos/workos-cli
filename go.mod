@@ -1,6 +1,6 @@
 module github.com/workos/workos-cli
 
-go 1.23
+go 1.23.4
 
 require (
 	github.com/charmbracelet/huh v0.5.1
@@ -9,6 +9,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	github.com/workos/workos-go/v4 v4.21.0
+	golang.org/x/text v0.16.0
 )
 
 require (
@@ -56,7 +57,8 @@ require (
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/workos/workos-go/v4 => github.com/workos/workos-go/v4 v4.26.1-0.20241219170524-3ecd219ec436
