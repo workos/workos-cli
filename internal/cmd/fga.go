@@ -70,6 +70,7 @@ func init() {
 	convertSchemaCMD.Flags().String("to", "json", "output to (schema or json)")
 	convertSchemaCMD.Flags().String("output", "pretty", "output pretty or raw. use raw for machine-readable output or writing to a file")
 	schemaCmd.AddCommand(convertSchemaCMD)
+	schemaCmd.AddCommand(getSchemaCmd)
 	applySchemaCmd.Flags().BoolP("verbose", "v", false, "print extra details about the request")
 	applySchemaCmd.Flags().Bool("strict", false, "fail if there are warnings")
 	schemaCmd.AddCommand(applySchemaCmd)
@@ -689,6 +690,12 @@ var convertSchemaCMD = &cobra.Command{
 				printer.PrintMsg("Resource Types:")
 				printer.PrintJson(response.ResourceTypes)
 			}
+			if response.Policies != nil {
+				printer.PrintMsg("Policies:")
+				for key, policy := range response.Policies {
+					printer.PrintMsg(fmt.Sprintf("%s: %s", key, policy))
+				}
+			}
 		case "raw":
 			if response.Schema != nil {
 				printer.PrintMsg(*response.Schema)
@@ -697,6 +704,35 @@ var convertSchemaCMD = &cobra.Command{
 			}
 		default:
 			return errors.Errorf("invalid output: %s", output)
+		}
+		return nil
+	},
+}
+
+var getSchemaCmd = &cobra.Command{
+	Use:     "get",
+	Short:   "Get the current schema",
+	Long:    "Get the current schema, which includes the version, resource types, and policies.",
+	Example: `workos fga schema get`,
+	Args:    cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		response, err := fga.GetSchema(context.Background())
+		if err != nil {
+			return errors.Errorf("error getting schema: %v", err)
+		}
+		convertResponse, err := fga.ConvertResourceTypesToSchema(context.Background(), fga.ConvertResourceTypesToSchemaOpts{
+			Version:       response.Version,
+			ResourceTypes: response.ResourceTypes,
+			Policies:      response.Policies,
+		})
+		if err != nil {
+			return convertSchemaError(err)
+		}
+
+		if convertResponse.Schema != nil {
+			printer.PrintMsg(*convertResponse.Schema)
+		} else {
+			return errors.New("error getting schema: no schema found")
 		}
 		return nil
 	},
@@ -747,12 +783,17 @@ var applySchemaCmd = &cobra.Command{
 			printer.PrintJson(response.ResourceTypes)
 		}
 
-		ops := make([]fga.UpdateResourceTypeOpts, 0)
+		resourceTypeOps := make([]fga.UpdateResourceTypeOpts, 0)
 		for _, rt := range response.ResourceTypes {
-			ops = append(ops, fga.UpdateResourceTypeOpts(rt))
+			resourceTypeOps = append(resourceTypeOps, fga.UpdateResourceTypeOpts(rt))
 		}
 
-		_, err = fga.BatchUpdateResourceTypes(context.Background(), ops)
+		policyOps := make(map[string]fga.UpdatePolicyOpts, len(response.Policies))
+		for key, p := range response.Policies {
+			policyOps[key] = fga.UpdatePolicyOpts(p)
+		}
+
+		_, err = fga.UpdateSchema(context.Background(), fga.UpdateSchemaOpts{ResourceTypes: resourceTypeOps, Policies: policyOps})
 		if err != nil {
 			return errors.Errorf("error applying schema: %v", err)
 		}
