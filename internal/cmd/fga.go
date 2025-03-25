@@ -720,11 +720,7 @@ var getSchemaCmd = &cobra.Command{
 		if err != nil {
 			return errors.Errorf("error getting schema: %v", err)
 		}
-		convertResponse, err := fga.ConvertResourceTypesToSchema(context.Background(), fga.ConvertResourceTypesToSchemaOpts{
-			Version:       response.Version,
-			ResourceTypes: response.ResourceTypes,
-			Policies:      response.Policies,
-		})
+		convertResponse, err := fga.ConvertResourceTypesToSchema(context.Background(), fga.ConvertResourceTypesToSchemaOpts(response))
 		if err != nil {
 			return convertSchemaError(err)
 		}
