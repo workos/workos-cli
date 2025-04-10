@@ -29,7 +29,7 @@ jobs:
         run: go build
         working-directory: cmd/workos
       - name: GoReleaser Check
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
           distribution: goreleaser
           version: latest
@@ -48,7 +48,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6.5.2
         with:
           version: latest
           args: -v --timeout=5m
