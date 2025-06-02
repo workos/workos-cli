@@ -25,9 +25,15 @@ import (
 const (
 	ResourceSeparator = ":"
 	RelationSeparator = "#"
+
+	TestFileExtensionJSON = ".test.json"
+	TestFileExtensionYAML = ".test.yaml"
+	TestFileExtensionYML  = ".test.yml"
 )
 
 var resourceTypesFile string
+var AcceptedTestFileExtensions = []string{TestFileExtensionJSON, TestFileExtensionYAML, TestFileExtensionYML}
+var AcceptedTestFileExtensionErrorMessage = fmt.Sprintf("Accepted test file extensions are: %s", strings.Join(AcceptedTestFileExtensions, ", "))
 
 func init() {
 	// resource-types
@@ -810,55 +816,66 @@ var applySchemaCmd = &cobra.Command{
 }
 
 // Test spec types
-type warrants struct {
+
+type WarrantSetup struct {
 	Subject  string `yaml:"subject" json:"subject"`
 	Relation string `yaml:"relation" json:"relation"`
 	Resource string `yaml:"resource" json:"resource"`
 	Policy   string `yaml:"policy,omitempty" json:"policy,omitempty"`
 }
 
-type setupSection struct {
-	Warrants []warrants `yaml:"warrants" json:"warrants"`
+type FGATestSetupSection struct {
+	Warrants []WarrantSetup `yaml:"warrants" json:"warrants"`
 }
 
-type testCheck struct {
+type FGATestCheck struct {
 	Subject  string                 `yaml:"subject" json:"subject"`
 	Relation string                 `yaml:"relation" json:"relation"`
 	Resource string                 `yaml:"resource" json:"resource"`
 	Context  map[string]interface{} `yaml:"context,omitempty" json:"context,omitempty"`
 }
 
-type testCase struct {
-	Name   string    `yaml:"name" json:"name"`
-	Check  testCheck `yaml:"check" json:"check"`
-	Expect bool      `yaml:"expect" json:"expect"`
+type FGATestCase struct {
+	Name   string       `yaml:"name" json:"name"`
+	Check  FGATestCheck `yaml:"check" json:"check"`
+	Expect bool         `yaml:"expect" json:"expect"`
 }
 
-type teardownSection struct {
-	Warrants  []warrants `yaml:"warrants" json:"warrants"`
-	Resources []string   `yaml:"resources" json:"resources"`
+type FGATestTeardownSection struct {
+	Warrants  []WarrantSetup `yaml:"warrants" json:"warrants"`
+	Resources []string       `yaml:"resources" json:"resources"`
 }
 
-type testYaml struct {
-	Setup    setupSection     `yaml:"setup" json:"setup"`
-	Tests    []testCase       `yaml:"tests" json:"tests"`
-	Teardown *teardownSection `yaml:"teardown,omitempty" json:"teardown,omitempty"`
+type FGATestYaml struct {
+	Setup    FGATestSetupSection     `yaml:"setup" json:"setup"`
+	Tests    []FGATestCase           `yaml:"tests" json:"tests"`
+	Teardown *FGATestTeardownSection `yaml:"teardown,omitempty" json:"teardown,omitempty"`
 }
 
-func parseTestFile(testFile string) (testYaml, error) {
-	var testSpec testYaml
+type FGATestResult struct {
+	Passed    bool
+	NumPassed int
+	NumTotal  int
+}
+
+func parseTestFile(testFile string) (FGATestYaml, error) {
+	var testSpec FGATestYaml
 	bytes, err := os.ReadFile(testFile)
 	if err != nil {
 		return testSpec, errors.Wrap(err, "failed to read test file")
 	}
-	ext := filepath.Ext(testFile)
-	switch ext {
-	case ".yaml", ".yml":
+
+	if !isTestFile(testFile) {
+		return testSpec, errors.Errorf("invalid test file format. %s", AcceptedTestFileExtensionErrorMessage)
+	}
+
+	switch {
+	case strings.HasSuffix(testFile, TestFileExtensionYAML), strings.HasSuffix(testFile, TestFileExtensionYML):
 		err = yaml.Unmarshal(bytes, &testSpec)
-	case ".json":
+	case strings.HasSuffix(testFile, TestFileExtensionJSON):
 		err = json.Unmarshal(bytes, &testSpec)
 	default:
-		return testSpec, errors.Errorf("unsupported test file extension: %s (must be .yaml, .yml, or .json)", ext)
+		return testSpec, errors.New("failed to parse test file: " + AcceptedTestFileExtensionErrorMessage)
 	}
 	if err != nil {
 		return testSpec, errors.Wrap(err, "failed to parse test file")
@@ -874,7 +891,7 @@ func parseTestFile(testFile string) (testYaml, error) {
 	return testSpec, nil
 }
 
-func setupWarrants(setup setupSection) (string, error) {
+func setupTestWarrants(setup FGATestSetupSection) (string, error) {
 	batchWrites := make([]fga.WriteWarrantOpts, 0, len(setup.Warrants))
 	for _, w := range setup.Warrants {
 		subjectType, subjectIdRelation, valid := strings.Cut(w.Subject, ResourceSeparator)
@@ -909,13 +926,7 @@ func setupWarrants(setup setupSection) (string, error) {
 	return "", nil
 }
 
-type TestResult struct {
-	Passed    bool
-	NumPassed int
-	NumTotal  int
-}
-
-func runTestCases(tests []testCase, warrantToken string) (TestResult, error) {
+func runTestCases(tests []FGATestCase, warrantToken string) (FGATestResult, error) {
 	allPassed := true
 	passed := 0
 	total := len(tests)
@@ -964,10 +975,10 @@ func runTestCases(tests []testCase, warrantToken string) (TestResult, error) {
 			allPassed = false
 		}
 	}
-	return TestResult{Passed: allPassed, NumPassed: passed, NumTotal: total}, nil
+	return FGATestResult{Passed: allPassed, NumPassed: passed, NumTotal: total}, nil
 }
 
-func teardown(teardown *teardownSection) error {
+func teardownTest(teardown *FGATestTeardownSection) error {
 	if teardown == nil {
 		return nil
 	}
@@ -1018,7 +1029,7 @@ func teardown(teardown *teardownSection) error {
 	return nil
 }
 
-func cleanupResources(cmd *cobra.Command, setup setupSection) error {
+func cleanupTestResources(cmd *cobra.Command, setup FGATestSetupSection) error {
 	cleanupResources, err := cmd.Flags().GetBool("cleanup")
 	if err != nil {
 		return errors.Wrap(err, "failed to get cleanup flag")
@@ -1047,33 +1058,43 @@ func cleanupResources(cmd *cobra.Command, setup setupSection) error {
 	return nil
 }
 
-func runTestFile(cmd *cobra.Command, testFile string) (TestResult, error) {
+func runTestFile(cmd *cobra.Command, testFile string) (FGATestResult, error) {
 	testSpec, err := parseTestFile(testFile)
 	if err != nil {
-		return TestResult{}, err
+		return FGATestResult{}, err
 	}
-	warrantToken, err := setupWarrants(testSpec.Setup)
+	warrantToken, err := setupTestWarrants(testSpec.Setup)
 	if err != nil {
 		printer.PrintMsg(printer.RedText(printer.Cross, err.Error()))
-		return TestResult{}, err
+		return FGATestResult{}, err
 	}
 	result, err := runTestCases(testSpec.Tests, warrantToken)
 	if err != nil {
 		return result, err
 	}
-	if err := teardown(testSpec.Teardown); err != nil {
+	if err := teardownTest(testSpec.Teardown); err != nil {
 		return result, err
 	}
-	if err := cleanupResources(cmd, testSpec.Setup); err != nil {
+	if err := cleanupTestResources(cmd, testSpec.Setup); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func runTestDirectory(cmd *cobra.Command, path string) (TestResult, error) {
+func isTestFile(fileName string) bool {
+	for _, extToCheck := range AcceptedTestFileExtensions {
+		if strings.HasSuffix(fileName, extToCheck) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func runTestDirectory(cmd *cobra.Command, path string) (FGATestResult, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return TestResult{}, errors.Wrap(err, "failed to read directory")
+		return FGATestResult{}, errors.Wrap(err, "failed to read directory")
 	}
 	var testFiles []string
 	for _, entry := range entries {
@@ -1081,21 +1102,24 @@ func runTestDirectory(cmd *cobra.Command, path string) (TestResult, error) {
 			continue
 		}
 		name := entry.Name()
-		if strings.HasSuffix(name, ".test.yaml") || strings.HasSuffix(name, ".test.yml") || strings.HasSuffix(name, ".test.json") {
+		if isTestFile(name) {
 			testFiles = append(testFiles, filepath.Join(path, name))
 		}
 	}
 	if len(testFiles) == 0 {
-		printer.PrintMsg("No test files found in directory. Make sure to name your test files with the .test.yaml, .test.yml, or .test.json extension.")
-		return TestResult{Passed: true, NumPassed: 0, NumTotal: 0}, nil
+		printer.PrintMsg("No test files found in directory. " + AcceptedTestFileExtensionErrorMessage)
+		return FGATestResult{Passed: true, NumPassed: 0, NumTotal: 0}, nil
 	}
-	finalResult := TestResult{Passed: true, NumPassed: 0, NumTotal: 0}
+
+	finalResult := FGATestResult{Passed: true, NumPassed: 0, NumTotal: 0}
 	for _, file := range testFiles {
 		printer.PrintMsg("")
 		printer.PrintMsg("Running tests in " + file)
 		result, err := runTestFile(cmd, file)
+
 		finalResult.NumPassed += result.NumPassed
 		finalResult.NumTotal += result.NumTotal
+
 		if err != nil {
 			printer.PrintMsg(printer.RedText(printer.Cross, err.Error()))
 			finalResult.Passed = false
@@ -1103,6 +1127,7 @@ func runTestDirectory(cmd *cobra.Command, path string) (TestResult, error) {
 			finalResult.Passed = false
 		}
 	}
+
 	printer.PrintMsg("")
 	if finalResult.Passed {
 		printer.PrintMsg(fmt.Sprintf("All tests passed (%d/%d)", finalResult.NumPassed, finalResult.NumTotal))
@@ -1114,9 +1139,9 @@ func runTestDirectory(cmd *cobra.Command, path string) (TestResult, error) {
 }
 
 var testCmd = &cobra.Command{
-	Use:     "test <test_file.yaml|json|directory>",
-	Short:   "Run FGA permission tests from a YAML/JSON file or all test files in a directory",
-	Long:    `Run FGA permission tests from a YAML or JSON file, or all .test.yaml/.test.json files in a directory, setting up and tearing down warrants and resources as specified.
+	Use:   "test <test_file.test.yaml|json|directory>",
+	Short: "Run FGA permission tests from a YAML/JSON file or all test files in a directory",
+	Long: `Run FGA permission tests from a YAML or JSON file, or all .test.yaml/.test.json files in a directory, setting up and tearing down warrants and resources as specified.
 
 Test file format (YAML or JSON):
 
@@ -1160,7 +1185,7 @@ JSON:
 
 Each test file must have a 'setup' section, a 'tests' array, and an optional 'teardown' section.
 `,
-	Example: "workos fga test ./tests.yaml --cleanup\nworkos fga test ./tests.json --cleanup\nworkos fga test ./test-directory/ --cleanup",
+	Example: "workos fga test ./schema.test.yaml --cleanup\nworkos fga test ./schema.test.json --cleanup\nworkos fga test ./test-directory/ --cleanup",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := args[0]
