@@ -1157,8 +1157,8 @@ YAML:
         subject: user:admin
         relation: owner
         resource: doc:1
-		context:
-		  key: "some_value"
+        context:
+          key: "some_value"
       expect: true
   
   # Optional teardown section, alternatively pass the --cleanup flag to the test command to clean up all resources from the setup section
@@ -1166,6 +1166,10 @@ YAML:
     resources:
       - doc:1
       - user:admin
+    warrants:
+      - subject: user:admin
+        relation: owner
+        resource: doc:1
 
 JSON:
 {
