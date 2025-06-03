@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -18,9 +19,21 @@ import (
 	"github.com/workos/workos-cli/internal/printer"
 	"github.com/workos/workos-go/v4/pkg/fga"
 	"github.com/workos/workos-go/v4/pkg/workos_errors"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	ResourceSeparator = ":"
+	RelationSeparator = "#"
+
+	TestFileExtensionJSON = ".test.json"
+	TestFileExtensionYAML = ".test.yaml"
+	TestFileExtensionYML  = ".test.yml"
 )
 
 var resourceTypesFile string
+var AcceptedTestFileExtensions = []string{TestFileExtensionJSON, TestFileExtensionYAML, TestFileExtensionYML}
+var AcceptedTestFileExtensionErrorMessage = fmt.Sprintf("Accepted test file extensions are: %s", strings.Join(AcceptedTestFileExtensions, ", "))
 
 func init() {
 	// resource-types
@@ -75,6 +88,9 @@ func init() {
 	applySchemaCmd.Flags().Bool("strict", false, "fail if there are warnings")
 	schemaCmd.AddCommand(applySchemaCmd)
 	fgaCmd.AddCommand(schemaCmd)
+
+	testCmd.Flags().Bool("cleanup", false, "Optional: Delete all resources referenced in setup warrants after test run")
+	fgaCmd.AddCommand(testCmd)
 
 	rootCmd.AddCommand(fgaCmd)
 }
@@ -177,13 +193,13 @@ var createWarrantCmd = &cobra.Command{
 	Example: "workos fga warrant create user:john owner document:xyz --policy \"region == 'eu'\"",
 	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
+		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid subject: %s", args[0])
 		}
-		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
+		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, RelationSeparator)
 		relation := args[1]
-		resourceType, resourceId, valid := strings.Cut(args[2], ":")
+		resourceType, resourceId, valid := strings.Cut(args[2], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
@@ -229,13 +245,13 @@ var deleteWarrantCmd = &cobra.Command{
 	Example: "workos fga warrant delete user:john owner document:xyz",
 	Args:    cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
+		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid subject: %s", args[0])
 		}
-		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
+		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, RelationSeparator)
 		relation := args[1]
-		resourceType, resourceId, valid := strings.Cut(args[2], ":")
+		resourceType, resourceId, valid := strings.Cut(args[2], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
@@ -277,7 +293,7 @@ var createResourceCmd = &cobra.Command{
 	Example: `workos fga resource create user:john '{"email":"john.doe@workos.com"}'`,
 	Args:    cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resourceType, resourceId, valid := strings.Cut(args[0], ":")
+		resourceType, resourceId, valid := strings.Cut(args[0], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
@@ -393,7 +409,7 @@ var updateResourceCmd = &cobra.Command{
 	Example: `workos fga resource update user:john '{"email":"john.doe@workos.com"}'`,
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resourceType, resourceId, valid := strings.Cut(args[0], ":")
+		resourceType, resourceId, valid := strings.Cut(args[0], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
@@ -425,7 +441,7 @@ var deleteResourceCmd = &cobra.Command{
 	Example: `workos fga resource delete user:john`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resourceType, resourceId, valid := strings.Cut(args[0], ":")
+		resourceType, resourceId, valid := strings.Cut(args[0], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
@@ -450,13 +466,13 @@ var checkRelationCmd = &cobra.Command{
 	Example: `workos fga check user:john owner document:xyz '{"organization": "acme"}'`,
 	Args:    cobra.RangeArgs(3, 4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ":")
+		subjectType, subjectIdRelation, valid := strings.Cut(args[0], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid subject: %s", args[0])
 		}
-		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, "#")
+		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, RelationSeparator)
 		relation := args[1]
-		resourceType, resourceId, valid := strings.Cut(args[2], ":")
+		resourceType, resourceId, valid := strings.Cut(args[2], ResourceSeparator)
 		if !valid {
 			return errors.Errorf("invalid resource: %s", args[0])
 		}
@@ -796,6 +812,416 @@ var applySchemaCmd = &cobra.Command{
 
 		printer.PrintMsg("Schema applied")
 		return nil
+	},
+}
+
+// Test spec types
+
+type WarrantSetup struct {
+	Subject  string `yaml:"subject" json:"subject"`
+	Relation string `yaml:"relation" json:"relation"`
+	Resource string `yaml:"resource" json:"resource"`
+	Policy   string `yaml:"policy,omitempty" json:"policy,omitempty"`
+}
+
+type FGATestSetupSection struct {
+	Warrants []WarrantSetup `yaml:"warrants" json:"warrants"`
+}
+
+type FGATestCheck struct {
+	Subject  string                 `yaml:"subject" json:"subject"`
+	Relation string                 `yaml:"relation" json:"relation"`
+	Resource string                 `yaml:"resource" json:"resource"`
+	Context  map[string]interface{} `yaml:"context,omitempty" json:"context,omitempty"`
+}
+
+type FGATestCase struct {
+	Name   string       `yaml:"name" json:"name"`
+	Check  FGATestCheck `yaml:"check" json:"check"`
+	Expect bool         `yaml:"expect" json:"expect"`
+}
+
+type FGATestTeardownSection struct {
+	Warrants  []WarrantSetup `yaml:"warrants" json:"warrants"`
+	Resources []string       `yaml:"resources" json:"resources"`
+}
+
+type FGATestYaml struct {
+	Setup    FGATestSetupSection     `yaml:"setup" json:"setup"`
+	Tests    []FGATestCase           `yaml:"tests" json:"tests"`
+	Teardown *FGATestTeardownSection `yaml:"teardown,omitempty" json:"teardown,omitempty"`
+}
+
+type FGATestResult struct {
+	Passed    bool
+	NumPassed int
+	NumTotal  int
+}
+
+func parseTestFile(testFile string) (FGATestYaml, error) {
+	var testSpec FGATestYaml
+	bytes, err := os.ReadFile(testFile)
+	if err != nil {
+		return testSpec, errors.Wrap(err, "failed to read test file")
+	}
+
+	if !isTestFile(testFile) {
+		return testSpec, errors.Errorf("invalid test file format. %s", AcceptedTestFileExtensionErrorMessage)
+	}
+
+	switch {
+	case strings.HasSuffix(testFile, TestFileExtensionYAML), strings.HasSuffix(testFile, TestFileExtensionYML):
+		err = yaml.Unmarshal(bytes, &testSpec)
+	case strings.HasSuffix(testFile, TestFileExtensionJSON):
+		err = json.Unmarshal(bytes, &testSpec)
+	default:
+		return testSpec, errors.New("failed to parse test file: " + AcceptedTestFileExtensionErrorMessage)
+	}
+	if err != nil {
+		return testSpec, errors.Wrap(err, "failed to parse test file")
+	}
+	// Check for duplicate test names
+	testNames := make(map[string]bool)
+	for _, t := range testSpec.Tests {
+		if testNames[t.Name] {
+			return testSpec, errors.Errorf("duplicate test name found: %s", t.Name)
+		}
+		testNames[t.Name] = true
+	}
+	return testSpec, nil
+}
+
+func setupTestWarrants(setup FGATestSetupSection) (string, error) {
+	batchWrites := make([]fga.WriteWarrantOpts, 0, len(setup.Warrants))
+	for _, w := range setup.Warrants {
+		subjectType, subjectIdRelation, valid := strings.Cut(w.Subject, ResourceSeparator)
+		if !valid {
+			return "", errors.Errorf("invalid subject in setup: %s", w.Subject)
+		}
+		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, RelationSeparator)
+		resourceType, resourceId, valid := strings.Cut(w.Resource, ResourceSeparator)
+		if !valid {
+			return "", errors.Errorf("invalid resource in setup: %s", w.Resource)
+		}
+		batchWrites = append(batchWrites, fga.WriteWarrantOpts{
+			Op:           fga.WarrantOpCreate,
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
+			Relation:     w.Relation,
+			Subject: fga.Subject{
+				ResourceType: subjectType,
+				ResourceId:   subjectId,
+				Relation:     subjectRelation,
+			},
+			Policy: w.Policy,
+		})
+	}
+	if len(batchWrites) > 0 {
+		response, err := fga.BatchWriteWarrants(context.Background(), batchWrites)
+		if err != nil {
+			return "", errors.Wrap(err, "setup failed")
+		}
+		return response.WarrantToken, nil
+	}
+	return "", nil
+}
+
+func runTestCases(tests []FGATestCase, warrantToken string) (FGATestResult, error) {
+	allPassed := true
+	passed := 0
+	total := len(tests)
+	for _, t := range tests {
+		subjectType, subjectIdRelation, valid := strings.Cut(t.Check.Subject, ResourceSeparator)
+		if !valid {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Invalid subject in test: "+t.Check.Subject))
+			allPassed = false
+			continue
+		}
+		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, RelationSeparator)
+		resourceType, resourceId, valid := strings.Cut(t.Check.Resource, ResourceSeparator)
+		if !valid {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Invalid resource in test: "+t.Check.Resource))
+			allPassed = false
+			continue
+		}
+		warrantCheck := fga.WarrantCheck{
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
+			Relation:     t.Check.Relation,
+			Subject: fga.Subject{
+				ResourceType: subjectType,
+				ResourceId:   subjectId,
+				Relation:     subjectRelation,
+			},
+			Context: t.Check.Context,
+		}
+		result, err := fga.Check(
+			context.Background(),
+			fga.CheckOpts{
+				Checks:       []fga.WarrantCheck{warrantCheck},
+				WarrantToken: warrantToken,
+			},
+		)
+		if err != nil {
+			printer.PrintMsg(printer.RedText(printer.Cross, t.Name+": check failed: "+err.Error()))
+			allPassed = false
+			continue
+		}
+		if result.Authorized() == t.Expect {
+			printer.PrintMsg(printer.GreenText(printer.Checkmark, t.Name))
+			passed++
+		} else {
+			printer.PrintMsg(printer.RedText(printer.Cross, t.Name))
+			allPassed = false
+		}
+	}
+	return FGATestResult{Passed: allPassed, NumPassed: passed, NumTotal: total}, nil
+}
+
+func teardownTest(teardown *FGATestTeardownSection) error {
+	if teardown == nil {
+		return nil
+	}
+	for _, w := range teardown.Warrants {
+		subjectType, subjectIdRelation, valid := strings.Cut(w.Subject, ResourceSeparator)
+		if !valid {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Invalid subject in teardown: "+w.Subject))
+			continue
+		}
+		subjectId, subjectRelation, _ := strings.Cut(subjectIdRelation, RelationSeparator)
+		resourceType, resourceId, valid := strings.Cut(w.Resource, ResourceSeparator)
+		if !valid {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Invalid resource in teardown: "+w.Resource))
+			continue
+		}
+		_, err := fga.WriteWarrant(
+			context.Background(),
+			fga.WriteWarrantOpts{
+				Op:           fga.WarrantOpDelete,
+				ResourceType: resourceType,
+				ResourceId:   resourceId,
+				Relation:     w.Relation,
+				Subject: fga.Subject{
+					ResourceType: subjectType,
+					ResourceId:   subjectId,
+					Relation:     subjectRelation,
+				},
+			},
+		)
+		if err != nil {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Teardown (warrant) failed: "+err.Error()))
+		}
+	}
+	for _, resource := range teardown.Resources {
+		resourceType, resourceId, valid := strings.Cut(resource, ResourceSeparator)
+		if !valid {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Invalid resource in teardown: "+resource))
+			continue
+		}
+		err := fga.DeleteResource(context.Background(), fga.DeleteResourceOpts{
+			ResourceType: resourceType,
+			ResourceId:   resourceId,
+		})
+		if err != nil {
+			printer.PrintMsg(printer.RedText(printer.Cross, "Teardown (resource) failed: "+err.Error()))
+		}
+	}
+	return nil
+}
+
+func cleanupTestResources(cmd *cobra.Command, setup FGATestSetupSection) error {
+	cleanupResources, err := cmd.Flags().GetBool("cleanup")
+	if err != nil {
+		return errors.Wrap(err, "failed to get cleanup flag")
+	}
+	if cleanupResources {
+		resourceSet := make(map[string]bool)
+		for _, w := range setup.Warrants {
+			resourceSet[w.Resource] = true
+			resourceSet[w.Subject] = true
+		}
+		for resource := range resourceSet {
+			resourceType, resourceId, valid := strings.Cut(resource, ResourceSeparator)
+			if !valid {
+				printer.PrintMsg(printer.RedText(printer.Cross, "Invalid resource in cleanup: "+resource))
+				continue
+			}
+			err := fga.DeleteResource(context.Background(), fga.DeleteResourceOpts{
+				ResourceType: resourceType,
+				ResourceId:   resourceId,
+			})
+			if err != nil {
+				printer.PrintMsg(printer.RedText(printer.Cross, "Cleanup (resource) failed: "+err.Error()))
+			}
+		}
+	}
+	return nil
+}
+
+func runTestFile(cmd *cobra.Command, testFile string) (FGATestResult, error) {
+	testSpec, err := parseTestFile(testFile)
+	if err != nil {
+		return FGATestResult{}, err
+	}
+	warrantToken, err := setupTestWarrants(testSpec.Setup)
+	if err != nil {
+		printer.PrintMsg(printer.RedText(printer.Cross, err.Error()))
+		return FGATestResult{}, err
+	}
+	result, err := runTestCases(testSpec.Tests, warrantToken)
+	if err != nil {
+		return result, err
+	}
+	if err := teardownTest(testSpec.Teardown); err != nil {
+		return result, err
+	}
+	if err := cleanupTestResources(cmd, testSpec.Setup); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func isTestFile(fileName string) bool {
+	for _, extToCheck := range AcceptedTestFileExtensions {
+		if strings.HasSuffix(fileName, extToCheck) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func runTestDirectory(cmd *cobra.Command, path string) (FGATestResult, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return FGATestResult{}, errors.Wrap(err, "failed to read directory")
+	}
+	var testFiles []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if isTestFile(name) {
+			testFiles = append(testFiles, filepath.Join(path, name))
+		}
+	}
+	if len(testFiles) == 0 {
+		printer.PrintMsg("No test files found in directory. " + AcceptedTestFileExtensionErrorMessage)
+		return FGATestResult{Passed: true, NumPassed: 0, NumTotal: 0}, nil
+	}
+
+	finalResult := FGATestResult{Passed: true, NumPassed: 0, NumTotal: 0}
+	for _, file := range testFiles {
+		printer.PrintMsg("")
+		printer.PrintMsg("Running tests in " + file)
+		result, err := runTestFile(cmd, file)
+
+		finalResult.NumPassed += result.NumPassed
+		finalResult.NumTotal += result.NumTotal
+
+		if err != nil {
+			printer.PrintMsg(printer.RedText(printer.Cross, err.Error()))
+			finalResult.Passed = false
+		} else if !result.Passed {
+			finalResult.Passed = false
+		}
+	}
+
+	printer.PrintMsg("")
+	if finalResult.Passed {
+		printer.PrintMsg(fmt.Sprintf("All tests passed (%d/%d)", finalResult.NumPassed, finalResult.NumTotal))
+		return finalResult, nil
+	} else {
+		printer.PrintMsg(fmt.Sprintf("Some tests failed (%d/%d)", finalResult.NumPassed, finalResult.NumTotal))
+		return finalResult, errors.New("some tests failed")
+	}
+}
+
+var testCmd = &cobra.Command{
+	Use:   "test <test_file.test.yaml|json|directory>",
+	Short: "Run FGA permission tests from a YAML/JSON file or all test files in a directory",
+	Long: `Run FGA permission tests from a YAML or JSON file, or all .test.yaml/.test.json files in a directory, setting up and tearing down warrants and resources as specified.
+
+Test file format (YAML or JSON):
+
+YAML:
+  setup:
+    warrants:
+      - subject: user:admin
+        relation: owner
+        resource: doc:1
+  tests:
+    - name: Admin is owner
+      check:
+        subject: user:admin
+        relation: owner
+        resource: doc:1
+        context:
+          key: "some_value"
+      expect: true
+  
+  # Optional teardown section, alternatively pass the --cleanup flag to the test command to clean up all resources from the setup section
+  teardown:
+    resources:
+      - doc:1
+      - user:admin
+    warrants:
+      - subject: user:admin
+        relation: owner
+        resource: doc:1
+
+JSON:
+{
+  "setup": {
+    "warrants": [
+      { "subject": "user:admin", "relation": "owner", "resource": "doc:1" }
+    ]
+  },
+  "tests": [
+    {
+      "name": "Admin is owner",
+      "check": { "subject": "user:admin", "relation": "owner", "resource": "doc:1", "context": { "key": "some_value" } },
+      "expect": true
+    }
+  ],
+}
+
+Each test file must have a 'setup' section, a 'tests' array, and an optional 'teardown' section.
+`,
+	Example: "workos fga test ./schema.test.yaml --cleanup\nworkos fga test ./schema.test.json --cleanup\nworkos fga test ./test-directory/ --cleanup",
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := args[0]
+		info, err := os.Stat(path)
+		if err != nil {
+			return errors.Wrap(err, "failed to stat path")
+		}
+		if info.IsDir() {
+			result, err := runTestDirectory(cmd, path)
+			if err != nil {
+				return err
+			}
+			if result.Passed {
+				return nil
+			} else {
+				return errors.New("some tests failed")
+			}
+		} else {
+			result, err := runTestFile(cmd, path)
+			printer.PrintMsg("")
+			if err != nil {
+				printer.PrintMsg(printer.RedText(printer.Cross, err.Error()))
+				return err
+			}
+			if result.Passed {
+				printer.PrintMsg(fmt.Sprintf("All tests passed (%d/%d)", result.NumPassed, result.NumTotal))
+				return nil
+			} else {
+				printer.PrintMsg(fmt.Sprintf("Some tests failed (%d/%d)", result.NumPassed, result.NumTotal))
+				return errors.New("some tests failed")
+			}
+		}
 	},
 }
 
