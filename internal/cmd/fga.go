@@ -690,7 +690,7 @@ var convertSchemaCMD = &cobra.Command{
 			printer.PrintMsg("Version:")
 			printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
 
-			if response.Warnings != nil && len(response.Warnings) > 0 {
+			if len(response.Warnings) > 0 {
 				printer.PrintMsg(printer.YellowText("Warnings:"))
 				for _, warning := range response.Warnings {
 					printer.PrintMsg(printer.YellowText(warning.Message))
@@ -770,7 +770,7 @@ var validateSchemaCmd = &cobra.Command{
 			return convertSchemaError(err)
 		}
 
-		if response.Warnings != nil && len(response.Warnings) > 0 {
+		if len(response.Warnings) > 0 {
 			printer.PrintMsg(printer.YellowText("Warnings:"))
 			for _, warning := range response.Warnings {
 				printer.PrintMsg(printer.YellowText("* " + warning.Message))
@@ -811,10 +811,10 @@ var applySchemaCmd = &cobra.Command{
 			return convertSchemaError(err)
 		}
 
-		if response.Warnings != nil {
-			printer.PrintMsg("Warnings:")
+		if len(response.Warnings) > 0 {
+			printer.PrintMsg(printer.YellowText("Warnings:"))
 			for _, warning := range response.Warnings {
-				printer.PrintMsg(warning.Message)
+				printer.PrintMsg(printer.YellowText("* " + warning.Message))
 			}
 			printer.PrintMsg("\n")
 			if strict {
