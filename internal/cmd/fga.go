@@ -84,6 +84,7 @@ func init() {
 	convertSchemaCMD.Flags().String("output", "pretty", "output pretty or raw. use raw for machine-readable output or writing to a file")
 	schemaCmd.AddCommand(convertSchemaCMD)
 	schemaCmd.AddCommand(getSchemaCmd)
+	schemaCmd.AddCommand(validateSchemaCmd)
 	applySchemaCmd.Flags().BoolP("verbose", "v", false, "print extra details about the request")
 	applySchemaCmd.Flags().Bool("strict", false, "fail if there are warnings")
 	schemaCmd.AddCommand(applySchemaCmd)
@@ -689,10 +690,10 @@ var convertSchemaCMD = &cobra.Command{
 			printer.PrintMsg("Version:")
 			printer.PrintMsg(fmt.Sprintf("%s\n", response.Version))
 
-			if response.Warnings != nil {
-				printer.PrintMsg("Warnings:")
+			if len(response.Warnings) > 0 {
+				printer.PrintMsg(printer.YellowText("Warnings:"))
 				for _, warning := range response.Warnings {
-					printer.PrintMsg(warning.Message)
+					printer.PrintMsg(printer.YellowText(warning.Message))
 				}
 				printer.PrintMsg("\n")
 			}
@@ -750,6 +751,38 @@ var getSchemaCmd = &cobra.Command{
 	},
 }
 
+var validateSchemaCmd = &cobra.Command{
+	Use:     "validate <input_file>",
+	Short:   "Validate a schema file for issues",
+	Long:    "Validate a schema file, printing any warnings or errors found. Only schema files are accepted (not resource type JSON).",
+	Example: `workos fga schema validate schema.txt`,
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		bytes, err := os.ReadFile(args[0])
+		if err != nil {
+			return errors.Errorf("error reading input file: %v", err)
+		}
+
+		response, err := fga.ConvertSchemaToResourceTypes(context.Background(), fga.ConvertSchemaToResourceTypesOpts{
+			Schema: string(bytes),
+		})
+		if err != nil {
+			return convertSchemaError(err)
+		}
+
+		if len(response.Warnings) > 0 {
+			printer.PrintMsg(printer.YellowText("Warnings:"))
+			for _, warning := range response.Warnings {
+				printer.PrintMsg(printer.YellowText("* " + warning.Message))
+			}
+			return nil
+		}
+
+		printer.PrintMsg(printer.GreenText(printer.Checkmark + " No issues"))
+		return nil
+	},
+}
+
 var applySchemaCmd = &cobra.Command{
 	Use:     "apply <input_file>",
 	Short:   "Apply a schema",
@@ -778,10 +811,10 @@ var applySchemaCmd = &cobra.Command{
 			return convertSchemaError(err)
 		}
 
-		if response.Warnings != nil {
-			printer.PrintMsg("Warnings:")
+		if len(response.Warnings) > 0 {
+			printer.PrintMsg(printer.YellowText("Warnings:"))
 			for _, warning := range response.Warnings {
-				printer.PrintMsg(warning.Message)
+				printer.PrintMsg(printer.YellowText("* " + warning.Message))
 			}
 			printer.PrintMsg("\n")
 			if strict {
@@ -1228,11 +1261,15 @@ Each test file must have a 'setup' section, a 'tests' array, and an optional 'te
 func convertSchemaError(err error) error {
 	var target workos_errors.HTTPError
 	if errors.As(err, &target) {
+		formattedErrors := make([]string, 0, len(target.Errors))
+		for _, e := range target.Errors {
+			formattedErrors = append(formattedErrors, printer.RedText("\t* "+e))
+		}
 		if len(target.Errors) > 0 {
-			return errors.Errorf("error converting schema: %s\n\t%s", target.Message, strings.Join(target.Errors, "\n\t"))
+			return errors.New(printer.RedText(fmt.Sprintf("error validating schema: %s\n%s", target.Message, strings.Join(formattedErrors, "\n"))))
 		}
 	}
-	return errors.Errorf("error converting schema: %v", err)
+	return errors.New(printer.RedText(fmt.Sprintf("error validating schema: %v", err)))
 }
 
 func warrantCheckAsString(w fga.WarrantCheck) (string, error) {
