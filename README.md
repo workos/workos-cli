@@ -47,10 +47,31 @@ workos env remove
 Once initialized, the CLI is ready to use:
 
 ```shell
-workos [cmd] [args]
+workos
+The WorkOS CLI is a tool to interact with WorkOS APIs via the command line.
+
+Usage:
+  workos [command]
+
+Available Commands:
+  completion   Generate the autocompletion script for the specified shell
+  env          Manage configured environments
+  fga          Manage FGA resources (resource types, warrants, and resources).
+  help         Help about any command
+  init         Initialize the CLI
+  organization Manage organizations (create, update, delete, etc).
+  user         Manage users (get, list, update, delete, etc).
+
+Flags:
+  -h, --help               help for workos
+      --timeout duration   Timeout for commands (default 10s)
+  -v, --version            version for workos
+
+Use "workos [command] --help" for more information about a command.
 ```
 
 ### Environment Variables
+
 WorkOS CLI support environment variables for initialization and environment management.
 
 | Environment Variable                  | Description                                                                                                                                        | Supported Values     |
@@ -70,6 +91,7 @@ export WORKOS_ACTIVE_ENVIRONMENT=local
 ```
 
 `.workos.json`
+
 ```json
 {
   "environments": {
