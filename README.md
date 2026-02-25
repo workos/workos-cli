@@ -1,5 +1,8 @@
 # WorkOS CLI
 
+> [!TIP]
+> The functionality for this project has been ported to [workos/cli](https://github.com/workos/cli).
+
 ## Installation
 
 ### MacOS (Homebrew)
